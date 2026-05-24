@@ -7,4 +7,4 @@ pub mod tools;
 pub mod resources;
 pub mod prompts;
 
-pub use server::serve;
+pub use server::{serve, serve_sse};

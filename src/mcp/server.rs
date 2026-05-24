@@ -429,6 +429,41 @@ pub async fn handle_analyze(server: &MqttMcpServer, params: AnalyzeParams) -> Re
 
 // ── 启动入口 ──
 
+/// SSE 模式启动 — 返回 CancellationToken 用于优雅关闭
+pub async fn serve_sse(
+    mqtt: crate::mqtt::MqttHandle,
+    ai: Bridge,
+    db: Store,
+    config: &Config,
+    listen_addr: &str,
+) -> anyhow::Result<tokio_util::sync::CancellationToken> {
+    use std::net::SocketAddr;
+
+    let server = MqttMcpServer {
+        mqtt,
+        ai,
+        db,
+        config: config.clone(),
+    };
+
+    let bind: SocketAddr = listen_addr.parse()
+        .map_err(|e| anyhow::anyhow!("无效的监听地址 '{}': {}", listen_addr, e))?;
+
+    let sse = rmcp::transport::SseServer::serve(bind)
+        .await
+        .map_err(|e| anyhow::anyhow!("SSE Server 启动失败: {}", e))?;
+
+    // 每个 SSE 连接创建一个新的 MCP 服务实例（MqttMcpServer 已实现 Clone）
+    let ct = sse.with_service(move || server.clone());
+
+    tracing::info!("SSE 端点:    http://{}/sse", bind);
+    tracing::info!("POST 端点:   http://{}/message", bind);
+    tracing::info!("MCP Inspector 可通过 SSE 连接: npx @anthropic-ai/mcp-inspector sse http://{}/sse", bind);
+
+    Ok(ct)
+}
+
+/// stdio 模式启动 — 桌面端 Agent 直接通过标准输入输出连接
 pub async fn serve(
     mqtt: crate::mqtt::MqttHandle,
     ai: Bridge,

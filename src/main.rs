@@ -160,12 +160,51 @@ async fn main() -> anyhow::Result<()> {
     // 构建并启动 MCP 服务
     tracing::info!("启动 MCP 服务（{} 模式）...", cli.mode);
 
-    // 默认启动 Web Dashboard（--no-web 可禁用）
-    if !cli.no_web {
-        tracing::info!("Web Dashboard: http://localhost:{}", cli.web);
-        mqtt_mcp_server::web::serve(db, cli.web).await?;
-    } else {
-        mcp::serve(mqtt_handle, ai_bridge, db, &cfg, &cli.mode, &cli.listen).await?;
+    match cli.mode.as_str() {
+        // ── stdio 模式：桌面端 Agent 直连（Claude Desktop / Cursor） ──
+        "stdio" => {
+            // Web Dashboard 在后台并行运行（不阻塞 stdio）
+            if !cli.no_web {
+                let web_db = db.clone();
+                let web_port = cli.web;
+                tokio::spawn(async move {
+                    if let Err(e) = mqtt_mcp_server::web::serve(web_db, web_port).await {
+                        tracing::error!("Web Dashboard 错误: {}", e);
+                    }
+                });
+                tracing::info!("Web Dashboard: http://localhost:{}", cli.web);
+            }
+            mcp::serve(mqtt_handle, ai_bridge, db.clone(), &cfg, cli.mode.as_str(), &cli.listen).await?;
+        }
+
+        // ── SSE 模式：远程 Agent 通过 HTTP SSE 连接 ──
+        "sse" => {
+            // 启动 SSE MCP Server（axum 在后台运行，不阻塞）
+            let sse_ct = mcp::serve_sse(mqtt_handle, ai_bridge, db.clone(), &cfg, &cli.listen).await?;
+
+            // Web Dashboard 并行运行
+            if !cli.no_web {
+                let web_db = db;
+                let web_port = cli.web;
+                tokio::spawn(async move {
+                    if let Err(e) = mqtt_mcp_server::web::serve(web_db, web_port).await {
+                        tracing::error!("Web Dashboard 错误: {}", e);
+                    }
+                });
+                tracing::info!("Web Dashboard: http://localhost:{}", cli.web);
+            }
+
+            tracing::info!("═══════════════════════════════════════");
+            tracing::info!("MQTT MCP Server 已就绪（SSE 模式）");
+            tracing::info!("═══════════════════════════════════════");
+
+            // 等待 Ctrl+C
+            tokio::signal::ctrl_c().await?;
+            sse_ct.cancel();
+            tracing::info!("服务已关闭");
+        }
+
+        other => anyhow::bail!("不支持的模式: {}。可用: stdio, sse", other),
     }
 
     Ok(())

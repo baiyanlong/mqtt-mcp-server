@@ -19,7 +19,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # MCP 协议
-rmcp = { version = "0.6", features = ["server", "client", "transport-child-process"] }
+rmcp = { version = "0.6", features = ["server", "client", "transport-child-process", "transport-sse-server"] }
 schemars = "1"
 
 # MQTT
@@ -28,6 +28,7 @@ rumqttc = "0.24"
 # 异步运行时
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
+tokio-util = "0.7"
 
 # 序列化
 serde = { version = "1", features = ["derive"] }
