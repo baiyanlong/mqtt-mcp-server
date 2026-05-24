@@ -1,8 +1,6 @@
-# MQTT MCP Server
+# 🔌 MQTT MCP Server
 
-<p align="center">
-  <img src="logo.svg" width="120" alt="MQTT MCP Server Logo">
-</p>
+> 让 AI Agent 通过 MQTT 操控物理设备
 
 [![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
