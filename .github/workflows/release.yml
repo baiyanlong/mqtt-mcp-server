@@ -1,0 +1,98 @@
+# GitHub Actions：推送 tag 自动构建 ARM64 + x86_64 二进制，发布到 Release
+#
+# 使用方式：
+#   git tag v0.2.1 && git push --tags
+#
+# 完成后在 https://github.com/baiyanlong/mqtt-mcp-server/releases 下载
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  # ── ARM64 (树莓派 3B+/4/5) ──
+  build-arm64:
+    name: ARM64 (aarch64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 安装 Zig（交叉编译链接器）
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      # 安装 Rust + ARM 目标
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      # 编译
+      - name: 交叉编译 ARM64
+        run: |
+          cargo install cargo-zigbuild
+          cargo zigbuild --release --target aarch64-unknown-linux-gnu
+
+      # 重命名
+      - name: 重命名二进制
+        run: |
+          mv target/aarch64-unknown-linux-gnu/release/mqtt-mcp-server \
+             mqtt-mcp-server-arm64
+
+      # 上传到 Release
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: mqtt-mcp-server-arm64
+
+  # ── x86_64 (普通 Linux 服务器) ──
+  build-x86_64:
+    name: x86_64 Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: 编译 x86_64
+        run: cargo build --release
+
+      - name: 重命名
+        run: |
+          mv target/release/mqtt-mcp-server mqtt-mcp-server-x86_64
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: mqtt-mcp-server-x86_64
+
+  # ── 部署包（含 install.sh + README） ──
+  build-deploy-tarball:
+    name: 部署包 (tar.gz)
+    runs-on: ubuntu-latest
+    needs: [build-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载 ARM64 二进制
+        uses: actions/download-artifact@v4
+        with:
+          name: mqtt-mcp-server-arm64
+        continue-on-error: true
+
+      - name: 打包部署文件
+        run: |
+          mkdir -p dist
+          # 如果本地有二进制就拷进来（从上次 job 继承不行，直接从 release 拉）
+          cp deploy/install.sh dist/
+          cp deploy/README.md dist/
+          tar czf mqtt-mcp-server-deploy.tar.gz dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: mqtt-mcp-server-deploy.tar.gz
