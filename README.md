@@ -1,5 +1,9 @@
 # MQTT MCP Server
 
+<p align="center">
+  <img src="logo.svg" width="120" alt="MQTT MCP Server Logo">
+</p>
+
 [![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
