@@ -1,0 +1,29 @@
+# MCP Inspector 测试配置 — 接入 Ollama 本地模型
+mqtt:
+  broker: "tcp://localhost:1883"
+  topics:
+    - "#"
+  qos: 1
+  keep_alive: 60
+  clean_session: true
+
+ai:
+  enabled: true
+  provider: "openai"                         # Ollama 兼容 OpenAI API
+  api_key: "ollama"                          # Ollama 不需要真实 key，但不能为空
+  model: "qwen-coder"
+  base_url: "http://localhost:11434/v1"      # Ollama 本地端点
+  max_tokens: 512
+
+rules:
+  - name: "高温告警"
+    device: "*"
+    metric: "temperature"
+    condition: "value > 80"
+    action: "alert"
+    ai_enhance: true                         # 触发 AI 分析！
+
+storage:
+  db_path: "data/test-inspector.db"
+  max_records_per_device: 10000
+  retention_days: 7

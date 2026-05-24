@@ -1,0 +1,36 @@
+# MQTT MCP Server + Mosquitto 一键部署
+version: "3.8"
+
+services:
+  mqtt-mcp:
+    build: .
+    image: mqtt-mcp-server:latest
+    container_name: mqtt-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+    volumes:
+      - ./config.yaml:/etc/mqtt-mcp/config.yaml:ro
+      - mqtt_mcp_data:/app/data
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  mqtt_mcp_data:

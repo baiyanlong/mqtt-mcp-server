@@ -1,0 +1,66 @@
+# MQTT MCP Server 配置文件
+# ==========================
+
+mqtt:
+  broker: "tcp://localhost:1883"
+  # client_id: "mqtt-mcp-001"    # 不填则自动生成
+  # username: "admin"
+  # password: "password"
+  topics:
+    - "#"                          # 订阅所有主题
+    # - "sensors/#"
+    # - "devices/+/telemetry"
+  qos: 1                           # QoS: 0/1/2
+  keep_alive: 60                   # 心跳间隔（秒）
+  clean_session: false
+
+ai:
+  enabled: true
+  provider: "openai"               # openai / anthropic / deepseek / qwen / zhipu / custom
+  api_key: "${OPENAI_API_KEY}"     # 从环境变量读取，也支持直接写明文 key
+  model: "gpt-4o-mini"
+  # base_url: "https://api.openai.com/v1"  # 自定义 endpoint / 代理
+  max_tokens: 1024
+
+rules:
+  - name: "高温告警"
+    device: "pump/*"
+    metric: "temperature"
+    condition: "value > 85"
+    action: "alert"
+    ai_enhance: true                # 触发 LLM 深度分析
+
+  - name: "设备离线"
+    device: "*"
+    metric: "status"
+    condition: "last_seen > 300s"
+    action: "alert"
+    ai_enhance: false
+
+  - name: "能耗异常"
+    device: "meter/*"
+    metric: "power"
+    condition: "value > baseline * 1.5"
+    action: "alert"
+    ai_enhance: true
+
+  - name: "温度快速变化"
+    device: "*"
+    metric: "temperature"
+    condition: "rate > 5"           # 每分钟变化超过 5 度
+    action: "alert"
+    ai_enhance: true
+
+devices:
+  # 预注册设备（也可从 MQTT 流量自动发现）
+  # - id: "pump-01"
+  #   name: "主冷却泵"
+  #   type: "pump"
+  # - id: "thermostat-lobby"
+  #   name: "大堂温控器"
+  #   type: "thermostat"
+
+storage:
+  db_path: "data/mqtt-mcp.db"
+  max_records_per_device: 100000
+  retention_days: 30

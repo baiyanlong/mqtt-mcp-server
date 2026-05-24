@@ -1,0 +1,82 @@
+[package]
+name = "mqtt-mcp-server"
+version = "0.1.0"
+edition = "2021"
+authors = ["byl"]
+description = "MCP Server — 让 AI Agent 通过 MQTT 协议操控物理世界的 IoT 设备"
+license = "MIT"
+repository = "https://github.com/your-username/mqtt-mcp-server"
+keywords = ["mcp", "mqtt", "iot", "ai", "llm"]
+categories = ["network-programming", "development-tools"]
+
+[[bin]]
+name = "mqtt-mcp-server"
+path = "src/main.rs"
+
+[lib]
+name = "mqtt_mcp_server"
+path = "src/lib.rs"
+
+[dependencies]
+# MCP 协议
+rmcp = { version = "0.6", features = ["server", "client", "transport-child-process"] }
+schemars = "1"
+
+# MQTT
+rumqttc = "0.24"
+
+# 异步运行时
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# 存储
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# HTTP
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# 错误处理
+anyhow = "1"
+thiserror = "2"
+
+# 工具
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+dashmap = "6"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[[test]]
+name = "integration"
+path = "tests/integration/mqtt_test.rs"
+
+[[test]]
+name = "mcp_e2e"
+path = "tests/integration/mcp_e2e_test.rs"
+
+[[test]]
+name = "pipeline"
+path = "tests/integration/pipeline_test.rs"
+
+[[test]]
+name = "mcp_client"
+path = "tests/integration/mcp_client_test.rs"
+
+[[test]]
+name = "ai_bridge"
+path = "tests/integration/ai_bridge_test.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
