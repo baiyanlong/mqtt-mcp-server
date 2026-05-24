@@ -1,169 +1,188 @@
 # 🔌 MQTT MCP Server
 
-[![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
+> Cloud AI (Claude/GPT/Cursor) ← Remote Control → Raspberry Pi Edge Gateway ← MQTT → Your Factory Devices
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 🌐 **English** | [中文](README.md)
 
-> Let AI Agents control physical devices via MQTT.
+**Plug a Raspberry Pi into your factory cabinet. Claude can now read sensors, control PLCs, and analyze equipment health — using natural language.** The cloud AI doesn't run on the Pi; the little box just translates between MQTT and the AI protocol. Lightweight, secure, 6.9MB single binary.
 
 Author: [byl](https://github.com/byl)
 
 ---
 
+## What is MCP?
+
+**MCP (Model Context Protocol) is an open standard launched by Anthropic in 2025.** Think of it as "USB for AI." USB lets computers plug-and-play any peripheral; MCP lets AI plug-and-play any external tool.
+
+```
+Before MCP:
+  AI could only chat. Want to query a database? Write custom API code yourself.
+
+After MCP:
+  AI ← MCP Protocol → Databases, Filesystems, MQTT devices, GitHub...
+  Any MCP-compatible service, AI can operate directly.
+```
+
+**What does MQTT MCP Server do?** It builds a bridge between MCP and MQTT. The AI sees "8 tool functions," but each one actually controls real physical devices.
+
+```
+AI Agent                     MQTT MCP Server            Physical World
+"What's pump #3 temp?"  →   mqtt_query_snapshot    →   MQTT query → 87°C
+"Shut down pump #3"     →   mqtt_send_command      →   MQTT command → pump stops
+"Any anomalies?"        →   mqtt_get_alerts        →   Returns alert list
+```
+
+**The MCP ecosystem is exploding**: Claude Desktop, Cursor, Windsurf, and Continue.dev all have native MCP support. Build one MCP Server, dozens of AI clients can use it. Like building an HTTP website in the 90s — new protocol, new opportunity.
+
+---
+
+## Architecture at a Glance
+
+```
+Your Laptop                      Factory Floor Raspberry Pi
+┌─────────────────┐              ┌──────────────────────┐
+│ Claude Desktop   │   HTTP SSE  │  mqtt-mcp-server     │
+│ or Cursor AI     │←──remote───→│  (6.9MB Rust binary) │
+│                  │              │        ↓ MQTT        │
+│ "Shut down #3"   │              │  mosquitto broker    │
+│       ↓          │              │        ↓             │
+│  AI calls tools  │              │  PLC / Sensors / Actuators │
+└─────────────────┘              └──────────────────────┘
+```
+
+**The LLM doesn't run on the Pi** — it's on your machine or in the cloud. The Pi is just a "translator": AI commands → MQTT messages → devices, and device data → MCP format → AI.
+
+---
+
 ## Quick Start
 
-### Install
+### 1. Download (no Rust required)
+
+```bash
+# ARM64 Raspberry Pi
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
+
+# x86_64 Linux server
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-x86_64
+```
+
+Or build from source:
 
 ```bash
 cargo install mqtt-mcp-server
 ```
 
-### Run
+### 2. Run
 
 ```bash
-# Dashboard mode (default)
-mqtt-mcp-server --broker tcp://your-broker:1883 --topics "#" --ai --ai-provider ollama --ai-model qwen-coder --web 8080
-
-# Pure MCP mode
-mqtt-mcp-server --no-web --mode stdio
+mqtt-mcp-server \
+  --mode sse \
+  --listen 0.0.0.0:3000 \
+  --broker tcp://localhost:1883 \
+  --topics '#'
 ```
 
-Open `http://localhost:8080` for the Dashboard.
+### 3. Connect AI Agent
 
-### Docker
+Claude Desktop config:
 
-```bash
-docker-compose up -d     # one-click: mqtt-mcp + mosquitto
+```json
+{
+  "mcpServers": {
+    "mqtt": {
+      "transport": "sse",
+      "url": "http://<pi-ip>:3000/sse"
+    }
+  }
+}
 ```
+
+Same for Cursor / Windsurf. Done — your AI can now control physical devices.
 
 ---
 
-## AI Agent Capabilities
-
-Once connected, your AI agent can:
-
-- **Subscribe** to MQTT topics to monitor device data in real-time
-- **Publish** commands ("turn off pump #3")
-- **Query** current sensor values and historical trends
-- **Analyze** device health using AI (anomaly detection, predictive maintenance)
-- **Manage alerts** — get notified when something goes wrong
-
-### Example
+## Control Devices with Natural Language
 
 ```
-User: "What's the temperature of pump #3?"
-AI:   [calls mqtt_query_snapshot] → 87°C
-AI:   "Pump #3 is at 87°C, above the 85°C threshold. Analyze further?"
+You: "What's pump #3's temperature?"
+AI:  [calls mqtt_query_snapshot] → 87°C
+     "Pump #3 is at 87°C, above 85°C threshold. Analyze further?"
 
-User: "Yes"
-AI:   [calls mqtt_query_range + mqtt_analyze]
-AI:   "Rising 2°C/min — cooling system issue. Reduce load, inspect coolant."
+You: "Yes"
+AI:  [calls mqtt_query_range + mqtt_analyze]
+     "Rising 2°C/min — possible cooling failure.
+      Recommend: reduce load, inspect coolant loop."
 ```
+
+The AI auto-selects tools, constructs parameters, and interprets results. You don't need to know MQTT topics.
 
 ---
 
-## MCP Tools
+## 8 MCP Tools
 
-| Tool | Description |
+| Tool | What it does |
 |------|-------------|
 | `mqtt_subscribe` | Subscribe to MQTT topics |
-| `mqtt_publish` | Publish messages to MQTT topics |
+| `mqtt_publish` | Send messages to devices |
 | `mqtt_list_devices` | List all connected devices |
-| `mqtt_query_snapshot` | Get latest value for a device/metric |
-| `mqtt_query_range` | Query historical telemetry |
-| `mqtt_send_command` | Send commands to devices |
-| `mqtt_get_alerts` | Get recent alerts |
-| `mqtt_analyze` | AI-powered device health analysis |
+| `mqtt_query_snapshot` | Get latest device reading |
+| `mqtt_query_range` | Query historical trends |
+| `mqtt_send_command` | Send control commands |
+| `mqtt_get_alerts` | Get alert list |
+| `mqtt_analyze` | AI-powered health analysis |
+
+**Auto-discovery**: Any device that publishes to MQTT is automatically registered — no config needed.
 
 ---
 
-## Rule Engine
-
-Define rules in `config.yaml`. MQTT messages are automatically evaluated:
+## Rule Engine: Alerts Without Waiting for AI
 
 ```yaml
 rules:
   - name: "High Temperature"
-    device: "pump/*"          # matches device/pump/xxx
+    device: "pump/*"
     metric: "temperature"
-    condition: "value > 80"    # trigger when > 80°C
+    condition: "value > 80"
     action: "alert"
-    ai_enhance: true           # auto LLM analysis on trigger
+    ai_enhance: true
 
   - name: "Device Offline"
     device: "*"
     metric: "status"
     condition: "last_seen > 300s"
     action: "alert"
-    ai_enhance: false
 ```
-
-**Supported conditions:**
 
 | Expression | Meaning |
 |------------|---------|
 | `value > 85` | Numeric threshold |
-| `rate > 5` | Rate of change per minute |
-| `last_seen > 300s` | Device offline detection |
-
-**Severity auto-grading** (for temperature rules): 80–88→info, 88–100→warning, 100+→critical. Alerts include AI analysis results, shown in the Dashboard in real-time.
+| `rate > 5` | Rate of change |
+| `last_seen > 300s` | Offline detection |
 
 ---
 
-## Pricing
+## Web Dashboard
 
-| Tier | Price | Features |
-|------|-------|----------|
-| **Open Source** | Free (MIT) | Full MCP Server, Rule Engine, Web Dashboard, AI Bridge |
+Open `http://<pi-ip>:8080`:
 
-> AI token costs are covered by the customer's own API key. We never pay for your tokens.
+- Device online/offline status
+- Alert list (info / warning / critical)
+- Auto-refresh every 3 seconds
+- Dark theme, single HTML page, zero dependencies
 
 ---
 
-## Architecture
-
-```
-Remote AI Agent (Claude/Cursor)
-       ↕ HTTP SSE (port 3000)
-   mqtt-mcp-server (Raspberry Pi / edge box)
-       ↕ MQTT
-   Local MQTT Broker (mosquitto)
-       ↕
-   IoT Devices (sensors/actuators/PLC)
-```
-
-- **Written in Rust** — single binary, 6.9MB, memory-safe
-- Supports **stdio** (desktop) and **SSE** (remote/edge) transports
-- Built-in **rule engine** with custom DSL
-- **AI Bridge**: local pre-filtering + LLM deep analysis, saves tokens
-
-## Raspberry Pi / ARM64 Deployment
-
-MQTT MCP Server is designed to run on **edge boxes** — Raspberry Pi, industrial gateways, etc.
+## Raspberry Pi One-Click Deploy
 
 ```bash
-# 1. Download ARM64 binary
 wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
-
-# 2. Install Mosquitto (if not present)
 sudo apt install -y mosquitto
-
-# 3. One-click deploy
-sudo ./install.sh
-
-# Or with custom params
-sudo ./install.sh --broker tcp://localhost:1883 --listen 0.0.0.0:3000
+chmod +x install.sh && sudo ./install.sh
 ```
 
-After deployment, connect your AI Agent remotely:
-
-```
-SSE endpoint: http://<pi-ip>:3000/sse
-Web Dashboard: http://<pi-ip>:8080
-```
-
-See [deploy/README.md](deploy/README.md) for details.
+See [deploy/README.md](deploy/README.md).
 
 ---
 
@@ -171,27 +190,37 @@ See [deploy/README.md](deploy/README.md) for details.
 
 (Customer provides API key)
 
-| Model | provider value | Base URL |
-|-------|---------------|----------|
-| DeepSeek | `deepseek` | `https://api.deepseek.com/v1` |
-| Qwen | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| GLM | `zhipu` | `https://open.bigmodel.cn/api/paas/v4` |
-| Ollama | `ollama` | `http://localhost:11434/v1` |
-| OpenAI-compatible | `custom` | custom endpoint |
+| Provider | CLI flag |
+|----------|----------|
+| DeepSeek | `--ai-provider deepseek` |
+| Qwen | `--ai-provider qwen` |
+| GLM | `--ai-provider zhipu` |
+| Ollama (local) | `--ai-provider ollama --ai-model qwen2.5` |
+| Custom | `--ai-provider custom` |
+
+---
+
+## Pricing
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Open Source** | Free (MIT) | Full MCP Server, Rule Engine, Dashboard, AI Bridge |
+
+Pro tier (multi-node, cloud dashboard, OTA) in planning.
 
 ---
 
 ## Requirements
 
-- Rust 1.75+ (if building from source)
-- An MQTT broker (e.g., mosquitto, EMQX, HiveMQ)
+- ARM64 (Pi 3B+/4/5) or x86_64 Linux
+- An MQTT broker (mosquitto works great)
 - (Optional) LLM API key for AI analysis
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT
 
 ---
 

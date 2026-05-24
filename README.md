@@ -1,221 +1,243 @@
 # 🔌 MQTT MCP Server
 
-> 让 AI Agent 通过 MQTT 操控物理设备
+> 云端 AI（Claude/GPT/Cursor）← 远程操控 → 树莓派边缘网关 ← MQTT → 你的工厂设备
 
-[![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 🌐 [English](README.en.md) | **中文**
 
-**让任何 AI Agent 通过 MQTT 操控物理设备。**
-
-MQTT MCP Server 是一个 [Model Context Protocol](https://modelcontextprotocol.io/) 服务端，将 AI 智能体（Claude、GPT 等）与任何 MQTT 连接的 IoT 设备打通。5 分钟部署，你的 AI 助手就能读取传感器数据、控制执行器、分析遥测——全都通过自然语言。
+**把树莓派插到你的工厂机柜里，Claude 就能直接读取传感器、控制 PLC、分析设备健康——用自然语言。** 云端大模型不必部署在现场，小盒子只负责 MQTT ↔ AI 协议转换，轻量、安全、6.9MB 单文件。
 
 作者：[byl](https://github.com/byl)
 
 ---
 
+## 什么是 MCP？
+
+**MCP（Model Context Protocol）是 Anthropic（Claude 母公司）2025 年推出的开放标准**——简单说，它就是"AI 的 USB 协议"。USB 让电脑能即插即用任何外设，MCP 让 AI 能即插即用任何外部工具。
+
+```
+没有 MCP 的时代：
+  AI 只能聊天，想查个数据库？对不起，你得自己写代码调 API
+
+有 MCP 的时代：
+  AI ← MCP 协议 → 数据库、文件系统、MQTT设备、GitHub...
+  任何一个实现了 MCP 的服务，AI 都能直接操作
+```
+
+**MQTT MCP Server 做了什么？** 它在 MCP 协议和 MQTT 协议之间架了一座桥。AI 看到的是"8 个工具函数"，实际上每个函数都在操控真实的物理设备。
+
+```
+AI Agent                     MQTT MCP Server            物理世界
+"3号泵温度？"          →     mqtt_query_snapshot    →    MQTT 查询 → 87°C
+"关掉 3 号泵"          →     mqtt_send_command      →    MQTT 指令 → 泵停机
+"最近有什么异常？"     →     mqtt_get_alerts        →    返回告警列表
+```
+
+**MCP 的生态正在爆发**：Claude Desktop、Cursor、Windsurf、Continue.dev 都已经内置 MCP 支持。你写一个 MCP Server，几十个 AI 客户端都能用。这就像 90 年代写一个 HTTP 网站——协议是新的，机会是新的。
+
+---
+
+## 一句话理解：它怎么跑
+
+```
+你桌上的电脑                      工厂现场的树莓派
+┌─────────────────┐              ┌──────────────────────┐
+│ Claude Desktop   │   HTTP SSE  │  mqtt-mcp-server     │
+│ 或 Cursor AI     │←────远程────→│  (6.9MB Rust 二进制) │
+│                  │              │        ↓ MQTT        │
+│ "关掉3号泵"      │              │  mosquitto broker    │
+│       ↓          │              │        ↓             │
+│  AI 调用工具     │              │  PLC / 传感器 / 执行器│
+└─────────────────┘              └──────────────────────┘
+```
+
+**大模型不跑在树莓派上**——它在你电脑上或云端。树莓派只是个"翻译官"，把 AI 的指令翻译成 MQTT 消息发给设备，把设备数据翻译成 MCP 格式回给 AI。
+
+---
+
 ## 快速开始
 
-### 安装
+### 1. 下载（不需要装 Rust）
+
+```bash
+# ARM64 树莓派
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
+
+# x86_64 Linux 服务器
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-x86_64
+```
+
+或者源码安装：
 
 ```bash
 cargo install mqtt-mcp-server
 ```
 
-### 配置
+### 2. 启动
 
 ```bash
-cp config.example.yaml config.yaml
-# 编辑 config.yaml：设置 MQTT Broker 地址和（可选）AI 模型
+# 一行命令启动（不写配置文件也行）
+mqtt-mcp-server \
+  --mode sse \
+  --listen 0.0.0.0:3000 \
+  --broker tcp://localhost:1883 \
+  --topics '#'
 ```
 
-### 启动
+### 3. 连接 AI Agent
 
-```bash
-# Stdio 模式（对接 Claude Desktop 等 MCP 客户端）
-mqtt-mcp-server --config config.yaml --mode stdio
-
-# SSE 模式（HTTP 服务，对接远程 Agent）
-mqtt-mcp-server --config config.yaml --mode sse --listen 127.0.0.1:3000
-```
-
-### 配置 Claude Desktop
-
-在 `claude_desktop_config.json` 中添加：
+Claude Desktop 配置：
 
 ```json
 {
   "mcpServers": {
     "mqtt": {
-      "command": "mqtt-mcp-server",
-      "args": ["--config", "/你的路径/config.yaml", "--mode", "stdio"]
+      "transport": "sse",
+      "url": "http://你的树莓派IP:3000/sse"
     }
   }
 }
 ```
 
-Claude 立刻就能跟你的 IoT 设备说话了。
+Cursor / Windsurf 同理。配完之后，你的 AI 就能操控物理设备了。
 
 ---
 
-## AI Agent 能做什么
-
-接入之后，你的 AI Agent 可以：
-
-- **订阅** MQTT 主题，实时监控设备数据
-- **发布** 控制指令（比如"关掉 3 号泵"）
-- **查询** 当前传感器值和历史趋势
-- **分析** 设备健康状态（AI 异常检测、预测性维护）
-- **管理告警** —— 设备异常时自动推送
-
-### 对话示例
+## 用自然语言操控设备
 
 ```
-用户: "3号泵现在温度多少？"
-AI:   [调用 mqtt_query_snapshot] → 87°C
-AI:   "3号泵当前 87°C，已超过 85°C 阈值。需要我进一步分析吗？"
+你: "3号泵现在温度多少？"
+AI: [自动调用 mqtt_query_snapshot] → 87°C
+    "3号泵当前 87°C，已超过 85°C 阈值。要我分析趋势吗？"
 
-用户: "分析一下趋势。"
-AI:   [调用 mqtt_query_range + mqtt_analyze]
-AI:   "过去 5 分钟温度以 2°C/分钟速度上升，疑似冷却系统故障。
-       建议：降低负载，并检查冷却液回路。"
+你: "分析一下"
+AI: [调用 mqtt_query_range + mqtt_analyze]
+    "过去5分钟以 2°C/分钟上升，疑似冷却系统故障。
+     建议：降低负载，检查冷却液回路。"
 ```
 
----
-
-## 提供的 MCP 工具
-
-| 工具名称 | 功能 |
-|---------|------|
-| `mqtt_subscribe` | 订阅 MQTT 主题 |
-| `mqtt_publish` | 向 MQTT 主题发布消息 |
-| `mqtt_list_devices` | 列出所有已注册设备 |
-| `mqtt_query_snapshot` | 查询设备最新遥测数据 |
-| `mqtt_query_range` | 查询历史遥测数据 |
-| `mqtt_send_command` | 向设备发送控制命令 |
-| `mqtt_get_alerts` | 获取近期告警列表 |
-| `mqtt_analyze` | AI 驱动的设备健康分析 |
+AI 自动选择工具、自动构造参数、自动解读结果——你不需要知道 MQTT topic 是什么。
 
 ---
 
-## 规则引擎
+## 8 个 MCP 工具
 
-在 `config.yaml` 中声明规则，MQTT 消息自动评估触发告警：
+| 工具 | 做什么 | 谁调用 |
+|------|--------|--------|
+| `mqtt_subscribe` | 订阅 MQTT 主题，开始监听设备 | AI |
+| `mqtt_publish` | 向设备发消息（JSON 指令） | AI |
+| `mqtt_list_devices` | 列出所有已注册的设备 | AI |
+| `mqtt_query_snapshot` | 查某设备最新数据（"温度多少"） | AI |
+| `mqtt_query_range` | 查历史趋势（"过去1小时温度曲线"） | AI |
+| `mqtt_send_command` | 发控制指令（"关掉3号泵"） | AI |
+| `mqtt_get_alerts` | 获取告警列表 | AI |
+| `mqtt_analyze` | 调大模型深度分析设备健康 | AI |
+
+**设备自动注册**：任何向 MQTT 发了消息的设备，不需要手动配置，自动出现在设备列表里。
+
+---
+
+## 规则引擎：不用等 AI，自动触发告警
+
+AI 不是 24 小时盯着的，规则引擎替你站岗：
 
 ```yaml
 rules:
   - name: "高温告警"
-    device: "pump/*"        # 匹配 device/pump/xxx
+    device: "pump/*"
     metric: "temperature"
-    condition: "value > 80"  # 温度超过 80°C 触发
+    condition: "value > 80"    # 超过 80°C 立刻告警
     action: "alert"
-    ai_enhance: true         # 触发后自动 LLM 分析
+    ai_enhance: true           # 触发后自动让 LLM 分析
 
   - name: "设备离线"
     device: "*"
     metric: "status"
-    condition: "last_seen > 300s"  # 5 分钟无数据
+    condition: "last_seen > 300s"  # 5 分钟没数据
     action: "alert"
-    ai_enhance: false
 ```
 
-**支持的 condition 语法：**
-
-| 表达式 | 含义 | 示例 |
+| 表达式 | 含义 | 场景 |
 |--------|------|------|
-| `value > 85` | 数值阈值 | 温度超标 |
-| `rate > 5` | 每分钟变化率 | 温度飙升 |
-| `last_seen > 300s` | 离线检测 | 设备断连 |
-
-**严重程度自动分级**（规则名含"温度"时）：80–88→info，88–100→warning，100+→critical。告警含 AI 分析结果，Dashboard 实时展示。
+| `value > 85` | 数值阈值 | 温度/压力/电流超标 |
+| `rate > 5` | 变化速率 | 温度飙升、压力骤降 |
+| `last_seen > 300s` | 离线检测 | 设备断连/断电 |
 
 ---
 
-## 定价
+## Web Dashboard：实时看板
 
-| 版本 | 价格 | 包含功能 |
-|------|------|---------|
-| **开源版** | 免费 (MIT) | 完整 MCP Server、规则引擎、Web Dashboard、AI Bridge |
+启动后打开 `http://树莓派IP:8080`：
 
-> AI 调用费由客户自备 API Key，我们绝不替客户垫 token 费。
+- 设备在线/离线状态
+- 告警列表（info / warning / critical 分级）
+- 3 秒自动刷新
+- 深色主题，单 HTML 页面，零依赖
 
 ---
 
-## 架构
-
-```
-远程 AI Agent (Claude/Cursor)
-       ↕ HTTP SSE (端口 3000)
-   mqtt-mcp-server (树莓派 / 边缘盒子)
-       ↕ MQTT
-   本地 MQTT Broker (mosquitto)
-       ↕
-   IoT 设备群 (传感器/执行器/PLC)
-```
-
-- **Rust 编写** —— 单二进制文件，6.9MB，内存安全
-- 支持 **stdio**（桌面端）和 **SSE**（远程/边缘）两种传输模式
-- 内置**规则引擎**，支持自定义 DSL
-- **AI Bridge**：本地预过滤 + LLM 深度分析，省 token
-
-## 树莓派 / ARM64 部署
-
-MQTT MCP Server 最适合部署在**现场边缘盒子**上——树莓派、工控机等。
+## 树莓派一键部署
 
 ```bash
 # 1. 下载 ARM64 二进制
 wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
 
-# 2. 安装 Mosquitto（如果没有）
+# 2. 装 Mosquitto（MQTT Broker）
 sudo apt install -y mosquitto
 
-# 3. 一键部署
-sudo ./install.sh
+# 3. 一键部署 systemd 服务
+chmod +x install.sh && sudo ./install.sh
 
-# 或自定义参数
-sudo ./install.sh --broker tcp://localhost:1883 --listen 0.0.0.0:3000
-```
-
-部署后，远程 AI Agent 通过 HTTP 连接：
-
-```
-SSE 端点: http://树莓派IP:3000/sse
-Web 面板: http://树莓派IP:8080
+# 搞定。重启自动启动，崩溃自动重启。
 ```
 
 详见 [deploy/README.md](deploy/README.md)。
 
 ---
 
-## 国内 LLM 支持
+## 支持的国内 AI 模型
 
-已内置支持以下国内模型（客户自备 Key）：
+客户自备 API Key，我们不替客户垫 token 费。
 
-| 模型 | provider 配置值 | Base URL |
-|------|----------------|----------|
-| DeepSeek | `deepseek` | `https://api.deepseek.com/v1` |
-| 通义千问 | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| 智谱 GLM | `zhipu` | `https://open.bigmodel.cn/api/paas/v4` |
-| OpenAI 兼容 | `custom` | 自定义 endpoint |
+| 模型 | 命令行参数 | Base URL |
+|------|-----------|----------|
+| DeepSeek | `--ai-provider deepseek` | `api.deepseek.com` |
+| 通义千问 | `--ai-provider qwen` | `dashscope.aliyuncs.com` |
+| 智谱 GLM | `--ai-provider zhipu` | `open.bigmodel.cn` |
+| Ollama 本地 | `--ai-provider ollama --ai-model qwen2.5` | `localhost:11434` |
+| OpenAI 兼容 | `--ai-provider custom` | 自定义 |
+
+```bash
+# 示例：接 DeepSeek
+mqtt-mcp-server --mode sse --listen 0.0.0.0:3000 \
+  --ai --ai-provider deepseek --ai-model deepseek-chat \
+  --ai-key sk-xxx
+```
+
+---
+
+## 定价
+
+| 版本 | 价格 | 功能 |
+|------|------|------|
+| **开源版** | 免费 (MIT) | 完整 MCP Server、规则引擎、Dashboard、AI Bridge |
+
+Pro 版（多节点管理、云 Dashboard、OTA 升级）规划中。
 
 ---
 
 ## 环境要求
 
-- Rust 1.75+（从源码编译时需要）
-- 一个 MQTT Broker（如 mosquitto、EMQX、HiveMQ）
-- （可选）LLM API Key，启用 AI 分析功能
+- ARM64（树莓派 3B+/4/5）或 x86_64 Linux
+- 一个 MQTT Broker（mosquitto 够用）
+- （可选）LLM API Key，启用 AI 分析
 
 ---
 
 ## 许可证
 
-MIT — 详见 [LICENSE](LICENSE)
-
----
-
-用 Rust 连接 AI 与物理世界。🚀
+MIT
 
 ---
 
