@@ -1,7 +1,7 @@
 # GitHub Actions：推送 tag 自动构建 ARM64 + x86_64 二进制，发布到 Release
 #
 # 使用方式：
-#   git tag v0.2.1 && git push --tags
+#   git tag v0.3.0 && git push --tags
 #
 # 完成后在 https://github.com/baiyanlong/mqtt-mcp-server/releases 下载
 
@@ -12,7 +12,6 @@ on:
     tags:
       - 'v*'
 
-# 需要 contents: write 权限才能创建 Release 和上传二进制
 permissions:
   contents: write
 
@@ -28,21 +27,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 安装 Zig（交叉编译链接器）
-      - uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.13.0
+      # 安装 ARM64 交叉编译器（GCC，不走 zig 避免网络超时）
+      - name: 安装交叉编译器
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-aarch64-linux-gnu
 
       # 安装 Rust + ARM 目标
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu
 
-      # 编译
+      # 编译（用 GCC 交叉链接器）
       - name: 交叉编译 ARM64
         run: |
-          cargo install cargo-zigbuild
-          cargo zigbuild --release --target aarch64-unknown-linux-gnu
+          cargo build --release --target aarch64-unknown-linux-gnu
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       # 重命名
       - name: 重命名二进制
@@ -74,29 +75,3 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: mqtt-mcp-server-x86_64
-
-  # ── 部署包（含 install.sh + README） ──
-  build-deploy-tarball:
-    name: 部署包 (tar.gz)
-    runs-on: ubuntu-latest
-    needs: [build-arm64]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 下载 ARM64 二进制
-        uses: actions/download-artifact@v4
-        with:
-          name: mqtt-mcp-server-arm64
-        continue-on-error: true
-
-      - name: 打包部署文件
-        run: |
-          mkdir -p dist
-          # 如果本地有二进制就拷进来（从上次 job 继承不行，直接从 release 拉）
-          cp deploy/install.sh dist/
-          cp deploy/README.md dist/
-          tar czf mqtt-mcp-server-deploy.tar.gz dist/
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: mqtt-mcp-server-deploy.tar.gz
