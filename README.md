@@ -126,7 +126,7 @@ rules:
 | `rate > 5` | 每分钟变化率 | 温度飙升 |
 | `last_seen > 300s` | 离线检测 | 设备断连 |
 
-**严重程度自动分级**（规则名含"温度"时）：80~88→info，88~100→warning，100+→critical。告警含 AI 分析结果，Dashboard 实时展示。
+**严重程度自动分级**（规则名含"温度"时）：80–88→info，88–100→warning，100+→critical。告警含 AI 分析结果，Dashboard 实时展示。
 
 ---
 
