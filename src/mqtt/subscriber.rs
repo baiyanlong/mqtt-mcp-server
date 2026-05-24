@@ -17,19 +17,30 @@ pub async fn run_event_loop(eventloop: &mut EventLoop, handle: MqttHandle) {
                 let topic = publish.topic.clone();
                 let payload = String::from_utf8_lossy(&publish.payload).to_string();
 
-                // 步骤 1：数据解析
-                let value = match filter::parse_value(&payload) {
+                let device_id = filter::extract_device_id(&topic)
+                    .unwrap_or_else(|| "unknown".into());
+                let metric = filter::extract_metric(&topic)
+                    .unwrap_or_else(|| "value".into());
+
+                // 步骤 1：数据解析（优先使用设备映射的 JSON 路径）
+                let value = {
+                    let mapping = handle.devices.iter()
+                        .find(|d| d.id == device_id)
+                        .and_then(|d| d.mappings.iter().find(|m| m.metric == metric));
+
+                    match mapping {
+                        Some(m) => filter::parse_value_by_path(&payload, &m.json_path),
+                        None => filter::parse_value(&payload),
+                    }
+                };
+
+                let value = match value {
                     Some(v) => v,
                     None => {
                         tracing::debug!("无法解析载荷: topic={}", topic);
                         continue;
                     }
                 };
-
-                let device_id = filter::extract_device_id(&topic)
-                    .unwrap_or_else(|| "unknown".into());
-                let metric = filter::extract_metric(&topic)
-                    .unwrap_or_else(|| "value".into());
 
                 tracing::debug!(
                     "解析: device={}, metric={}, value={}",

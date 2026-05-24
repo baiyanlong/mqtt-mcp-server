@@ -72,6 +72,10 @@ struct Cli {
     #[arg(long)]
     ai_base_url: Option<String>,
 
+    /// AI 分析窗口大小（取最近 N 条数据）
+    #[arg(long)]
+    ai_window: Option<usize>,
+
     // ── 存储 ──
     /// SQLite 数据库路径
     #[arg(long)]
@@ -128,6 +132,9 @@ async fn main() -> anyhow::Result<()> {
     if let Some(url) = cli.ai_base_url {
         cfg.ai.base_url = Some(url);
     }
+    if let Some(w) = cli.ai_window {
+        cfg.ai.window_size = w;
+    }
 
     // 存储覆盖
     if let Some(db_path) = cli.db {
@@ -148,7 +155,7 @@ async fn main() -> anyhow::Result<()> {
     let ai_bridge = ai::Bridge::new(&cfg.ai);
 
     // 初始化 MQTT 客户端（传入 AI Bridge 和规则引擎）
-    let mqtt_handle = mqtt::start(&cfg.mqtt, db.clone(), Some(ai_bridge.clone()), cfg.rules.clone()).await?;
+    let mqtt_handle = mqtt::start(&cfg.mqtt, db.clone(), Some(ai_bridge.clone()), cfg.rules.clone(), cfg.devices.clone(), cfg.ai.window_size).await?;
 
     // 构建并启动 MCP 服务
     tracing::info!("启动 MCP 服务（{} 模式）...", cli.mode);

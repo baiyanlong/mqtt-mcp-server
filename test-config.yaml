@@ -27,3 +27,13 @@ storage:
   db_path: "data/test-inspector.db"
   max_records_per_device: 10000
   retention_days: 7
+
+# 设备映射示例：嵌套 JSON 路径提取
+# devices:
+#   - id: "pump1"
+#     name: "主泵"
+#     mappings:
+#       - metric: "temperature"
+#         json_path: "sensor.temperature.value"
+#       - metric: "vibration"
+#         json_path: "sensor.vibration.rms"

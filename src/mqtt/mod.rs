@@ -26,6 +26,10 @@ pub struct MqttHandle {
     pub ai: Option<Bridge>,
     /// 规则配置
     pub rules: Arc<Vec<crate::config::RuleConfig>>,
+    /// 设备配置（含 JSON 路径映射）
+    pub devices: Arc<Vec<crate::config::DeviceConfig>>,
+    /// AI 分析窗口大小
+    pub ai_window_size: usize,
     /// 设备注册回调：收到新设备时自动注册到数据库
     pub auto_register: bool,
 }
@@ -36,6 +40,8 @@ pub async fn start(
     db: Store,
     ai: Option<Bridge>,
     rules: Vec<crate::config::RuleConfig>,
+    devices: Vec<crate::config::DeviceConfig>,
+    ai_window_size: usize,
 ) -> anyhow::Result<MqttHandle> {
     let handle = MqttHandle {
         client: Arc::new(Mutex::new(None)),
@@ -44,6 +50,8 @@ pub async fn start(
         db,
         ai,
         rules: Arc::new(rules),
+        devices: Arc::new(devices),
+        ai_window_size,
         auto_register: true,
     };
 

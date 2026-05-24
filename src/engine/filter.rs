@@ -1,10 +1,10 @@
 //! 数据过滤与清洗工具。
 //!
 //! 预处理原始 MQTT 载荷，处理 IoT 数据常见的质量问题：
-//! 缺失值、时间戳不齐、异常量程。
+//! 缺失值、时间戳不齐、异常量程、嵌套 JSON。
 
 /// 将原始 MQTT 载荷解析为数值
-/// 支持纯数字和 JSON 格式（自动提取常见字段）
+/// 支持纯数字、JSON 自动提取常见字段、以及 JSON 路径导航
 pub fn parse_value(payload: &str) -> Option<f64> {
     // 先尝试直接解析数字
     if let Ok(v) = payload.trim().parse::<f64>() {
@@ -33,6 +33,27 @@ pub fn parse_value(payload: &str) -> Option<f64> {
     }
 
     None
+}
+
+/// 按 JSON 路径从载荷中提取数值
+/// 路径用点号分隔，如 "sensor.temperature.value"
+pub fn parse_value_by_path(payload: &str, json_path: &str) -> Option<f64> {
+    let obj: serde_json::Value = serde_json::from_str(payload).ok()?;
+    walk_json_path(&obj, json_path)
+}
+
+/// 递归遍历嵌套 JSON，按点号分隔路径取值
+fn walk_json_path(value: &serde_json::Value, path: &str) -> Option<f64> {
+    let mut current = value;
+    for key in path.split('.') {
+        match current {
+            serde_json::Value::Object(map) => {
+                current = map.get(key)?;
+            }
+            _ => return None,
+        }
+    }
+    current.as_f64().map(clamp)
 }
 
 /// 限制值到合理范围（过滤明显异常的传感器读数）
@@ -96,6 +117,18 @@ mod tests {
     fn test_parse_json_value() {
         let json = r#"{"value": 72.3, "unit": "celsius"}"#;
         assert_eq!(parse_value(json), Some(72.3));
+    }
+
+    #[test]
+    fn test_parse_nested_json_by_path() {
+        let json = r#"{"sensor":{"temperature":{"value":88.5}}}"#;
+        assert_eq!(parse_value_by_path(json, "sensor.temperature.value"), Some(88.5));
+    }
+
+    #[test]
+    fn test_parse_nested_json_two_levels() {
+        let json = r#"{"data":{"reading":42}}"#;
+        assert_eq!(parse_value_by_path(json, "data.reading"), Some(42.0));
     }
 
     #[test]

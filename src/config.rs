@@ -75,11 +75,15 @@ pub struct AiConfig {
     /// 每次请求最大 token 数
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+    /// AI 分析取最近 N 条数据
+    #[serde(default = "default_window_size")]
+    pub window_size: usize,
 }
 
 fn default_provider() -> String { "openai".into() }
 fn default_model() -> String { "gpt-4o-mini".into() }
 fn default_max_tokens() -> u32 { 1024 }
+fn default_window_size() -> usize { 100 }
 
 impl Default for AiConfig {
     fn default() -> Self {
@@ -90,6 +94,7 @@ impl Default for AiConfig {
             model: default_model(),
             base_url: None,
             max_tokens: default_max_tokens(),
+            window_size: default_window_size(),
         }
     }
 }
@@ -123,6 +128,18 @@ pub struct DeviceConfig {
     /// 设备类型标签
     #[serde(default)]
     pub device_type: Option<String>,
+    /// 指标映射（JSON 路径提取规则）
+    #[serde(default)]
+    pub mappings: Vec<MetricMapping>,
+}
+
+/// 指标映射 — 从嵌套 JSON 中提取指定字段
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetricMapping {
+    /// 指标名（如 temperature）
+    pub metric: String,
+    /// JSON 路径，点号分隔（如 sensor.temperature.value）
+    pub json_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

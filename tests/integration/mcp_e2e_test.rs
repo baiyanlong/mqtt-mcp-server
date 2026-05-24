@@ -51,6 +51,8 @@ async fn setup() -> (server::MqttMcpServer, rumqttc::AsyncClient) {
             db: db.clone(),
             ai: None,
             rules: Arc::new(vec![]),
+            devices: Arc::new(vec![]),
+            ai_window_size: 100,
             auto_register: false,
         },
         ai: ai_bridge,
