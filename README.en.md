@@ -1,13 +1,15 @@
-# MQTT MCP Server
+# 🔌 MQTT MCP Server
 
 [![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > 🌐 **English** | [中文](README.md)
 
-**Let any AI Agent talk to physical devices via MQTT.**
+> Let AI Agents control physical devices via MQTT.
 
-MQTT MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/) server that bridges AI agents (Claude, GPT, etc.) to any MQTT-connected IoT device. Deploy it in 5 minutes, and your AI assistant can read sensor data, control actuators, and analyze telemetry — all through natural language.
+Author: [byl](https://github.com/byl)
+
+---
 
 ## Quick Start
 
@@ -17,65 +19,51 @@ MQTT MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/) 
 cargo install mqtt-mcp-server
 ```
 
-### Configure
-
-```bash
-cp config.example.yaml config.yaml
-# Edit config.yaml: set your MQTT broker and (optionally) AI provider
-```
-
 ### Run
 
 ```bash
-# Stdio mode (for Claude Desktop, etc.)
-mqtt-mcp-server --config config.yaml --mode stdio
+# Dashboard mode (default)
+mqtt-mcp-server --broker tcp://your-broker:1883 --topics "#" --ai --ai-provider ollama --ai-model qwen-coder --web 8080
 
-# SSE mode (HTTP server)
-mqtt-mcp-server --config config.yaml --mode sse --listen 127.0.0.1:3000
+# Pure MCP mode
+mqtt-mcp-server --no-web --mode stdio
 ```
 
-### Configure Claude Desktop
+Open `http://localhost:8080` for the Dashboard.
 
-Add to `claude_desktop_config.json`:
+### Docker
 
-```json
-{
-  "mcpServers": {
-    "mqtt": {
-      "command": "mqtt-mcp-server",
-      "args": ["--config", "/path/to/config.yaml", "--mode", "stdio"]
-    }
-  }
-}
+```bash
+docker-compose up -d     # one-click: mqtt-mcp + mosquitto
 ```
 
-Now Claude can interact with your IoT devices.
+---
 
 ## AI Agent Capabilities
 
 Once connected, your AI agent can:
 
 - **Subscribe** to MQTT topics to monitor device data in real-time
-- **Publish** commands to control devices (e.g., "turn off pump #3")
+- **Publish** commands ("turn off pump #3")
 - **Query** current sensor values and historical trends
 - **Analyze** device health using AI (anomaly detection, predictive maintenance)
 - **Manage alerts** — get notified when something goes wrong
 
-### Example Conversation
+### Example
 
 ```
 User: "What's the temperature of pump #3?"
 AI:   [calls mqtt_query_snapshot] → 87°C
-AI:   "Pump #3 is at 87°C, which is above the 85°C threshold. Shall I analyze further?"
+AI:   "Pump #3 is at 87°C, above the 85°C threshold. Analyze further?"
 
-User: "Yes, analyze the trend."
+User: "Yes"
 AI:   [calls mqtt_query_range + mqtt_analyze]
-AI:   "The temperature has been rising 2°C/min for the last 5 minutes.
-       This suggests a cooling system issue. Recommendation: reduce load
-       and inspect the coolant circuit."
+AI:   "Rising 2°C/min — cooling system issue. Reduce load, inspect coolant."
 ```
 
-## Tools (MCP)
+---
+
+## MCP Tools
 
 | Tool | Description |
 |------|-------------|
@@ -88,35 +76,95 @@ AI:   "The temperature has been rising 2°C/min for the last 5 minutes.
 | `mqtt_get_alerts` | Get recent alerts |
 | `mqtt_analyze` | AI-powered device health analysis |
 
+---
+
+## Rule Engine
+
+Define rules in `config.yaml`. MQTT messages are automatically evaluated:
+
+```yaml
+rules:
+  - name: "High Temperature"
+    device: "pump/*"          # matches device/pump/xxx
+    metric: "temperature"
+    condition: "value > 80"    # trigger when > 80°C
+    action: "alert"
+    ai_enhance: true           # auto LLM analysis on trigger
+
+  - name: "Device Offline"
+    device: "*"
+    metric: "status"
+    condition: "last_seen > 300s"
+    action: "alert"
+    ai_enhance: false
+```
+
+**Supported conditions:**
+
+| Expression | Meaning |
+|------------|---------|
+| `value > 85` | Numeric threshold |
+| `rate > 5` | Rate of change per minute |
+| `last_seen > 300s` | Device offline detection |
+
+**Severity auto-grading** (for temperature rules): 80–88→info, 88–100→warning, 100+→critical. Alerts include AI analysis results, shown in the Dashboard in real-time.
+
+---
+
 ## Pricing
 
 | Tier | Price | Features |
 |------|-------|----------|
-| **Open Source** | Free (MIT) | Full MCP Server, single broker, local rules, basic AI Bridge |
-| **Pro** | $49/node/month | Multi-node dashboard, multi-broker, industry templates, alert push |
-| **Enterprise** | Custom | Private deployment, custom protocols (Modbus/OPC-UA), SSO, SLA |
+| **Open Source** | Free (MIT) | Full MCP Server, Rule Engine, Web Dashboard, AI Bridge |
+
+> AI token costs are covered by the customer's own API key. We never pay for your tokens.
+
+---
 
 ## Architecture
 
 ```
-AI Agent (Claude/GPT) ←→ MCP Protocol ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT Devices
+AI Agent ←→ MCP Protocol ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT Devices
 ```
 
-- Written in Rust — single binary, <10MB, memory-safe
-- Supports stdio and SSE transports
-- Built-in rule engine with configurable DSL
-- AI Bridge: local pre-filtering + LLM analysis for anomaly detection
+- **Written in Rust** — single binary, <6MB, memory-safe
+- Supports **stdio** and **SSE** transports
+- Built-in **rule engine** with custom DSL
+- **AI Bridge**: local pre-filtering + LLM deep analysis, saves tokens
+
+---
+
+## Supported LLM Providers
+
+(Customer provides API key)
+
+| Model | provider value | Base URL |
+|-------|---------------|----------|
+| DeepSeek | `deepseek` | `https://api.deepseek.com/v1` |
+| Qwen | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| GLM | `zhipu` | `https://open.bigmodel.cn/api/paas/v4` |
+| Ollama | `ollama` | `http://localhost:11434/v1` |
+| OpenAI-compatible | `custom` | custom endpoint |
+
+---
 
 ## Requirements
 
 - Rust 1.75+ (if building from source)
 - An MQTT broker (e.g., mosquitto, EMQX, HiveMQ)
-- (Optional) LLM API key for AI analysis features
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
+- (Optional) LLM API key for AI analysis
 
 ---
 
-Built with ❤️ for the intersection of AI and physical computing.
+## License
+
+MIT — see [LICENSE](LICENSE)
+
+---
+
+## Contact
+
+<p align="center">
+  <img src="qq-group.jpg" width="200" alt="QQ Group"><br>
+  <b>Scan to join QQ Group</b>
+</p>
