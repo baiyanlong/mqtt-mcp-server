@@ -16,7 +16,8 @@ async fn test_mcp_client_list_and_call() {
     cmd.arg("--config")
        .arg("/Users/byl/ai-project/mqtt-mcp-server/test-config.yaml")
        .arg("--mode")
-       .arg("stdio");
+       .arg("stdio")
+       .arg("--no-web");
 
     tracing::info!("启动 MCP Server 进程...");
     let transport = TokioChildProcess::new(cmd).unwrap();
