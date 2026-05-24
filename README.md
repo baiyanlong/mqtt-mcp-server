@@ -134,11 +134,14 @@ rules:
 
 | 版本 | 价格 | 包含功能 |
 |------|------|---------|
-| **开源版** | 免费 (MIT) | 完整 MCP Server、单 Broker、本地规则引擎、基础 AI Bridge |
-| **Pro 版** | ¥149/节点/月 ($49/节点/月) | 多节点管理面板、多 Broker、行业模板、告警推送 |
-| **企业版** | 定制报价 | 私有化部署、定制协议(Modbus/OPC-UA)、SSO、SLA |
+| **开源版** | 免费 (MIT) | 完整 MCP Server、规则引擎、Web Dashboard、AI Bridge |
 
-> AI 调用费由客户自备 API Key，我们绝不替客户垫 token 费。
+## 联系
+
+<p align="center">
+  <img src="qq-group.jpg" width="200" alt="QQ群"><br>
+  <b>扫码加入 QQ 群</b>
+</p>
 
 ---
 
