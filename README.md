@@ -3,118 +3,150 @@
 [![Crates.io](https://img.shields.io/crates/v/mqtt-mcp-server)](https://crates.io/crates/mqtt-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Let any AI Agent talk to physical devices via MQTT.**
+> 🌐 [English](README.en.md) | **中文**
 
-MQTT MCP Server is a [Model Context Protocol](https://modelcontextprotocol.io/) server that bridges AI agents (Claude, GPT, etc.) to any MQTT-connected IoT device. Deploy it in 5 minutes, and your AI assistant can read sensor data, control actuators, and analyze telemetry — all through natural language.
+**让任何 AI Agent 通过 MQTT 操控物理设备。**
 
-## Quick Start
+MQTT MCP Server 是一个 [Model Context Protocol](https://modelcontextprotocol.io/) 服务端，将 AI 智能体（Claude、GPT 等）与任何 MQTT 连接的 IoT 设备打通。5 分钟部署，你的 AI 助手就能读取传感器数据、控制执行器、分析遥测——全都通过自然语言。
 
-### Install
+作者：[byl](https://github.com/byl)
+
+---
+
+## 快速开始
+
+### 安装
 
 ```bash
 cargo install mqtt-mcp-server
 ```
 
-### Configure
+### 配置
 
 ```bash
 cp config.example.yaml config.yaml
-# Edit config.yaml: set your MQTT broker and (optionally) AI provider
+# 编辑 config.yaml：设置 MQTT Broker 地址和（可选）AI 模型
 ```
 
-### Run
+### 启动
 
 ```bash
-# Stdio mode (for Claude Desktop, etc.)
+# Stdio 模式（对接 Claude Desktop 等 MCP 客户端）
 mqtt-mcp-server --config config.yaml --mode stdio
 
-# SSE mode (HTTP server)
+# SSE 模式（HTTP 服务，对接远程 Agent）
 mqtt-mcp-server --config config.yaml --mode sse --listen 127.0.0.1:3000
 ```
 
-### Configure Claude Desktop
+### 配置 Claude Desktop
 
-Add to `claude_desktop_config.json`:
+在 `claude_desktop_config.json` 中添加：
 
 ```json
 {
   "mcpServers": {
     "mqtt": {
       "command": "mqtt-mcp-server",
-      "args": ["--config", "/path/to/config.yaml", "--mode", "stdio"]
+      "args": ["--config", "/你的路径/config.yaml", "--mode", "stdio"]
     }
   }
 }
 ```
 
-Now Claude can interact with your IoT devices.
-
-## AI Agent Capabilities
-
-Once connected, your AI agent can:
-
-- **Subscribe** to MQTT topics to monitor device data in real-time
-- **Publish** commands to control devices (e.g., "turn off pump #3")
-- **Query** current sensor values and historical trends
-- **Analyze** device health using AI (anomaly detection, predictive maintenance)
-- **Manage alerts** — get notified when something goes wrong
-
-### Example Conversation
-
-```
-User: "What's the temperature of pump #3?"
-AI:   [calls mqtt_query_snapshot] → 87°C
-AI:   "Pump #3 is at 87°C, which is above the 85°C threshold. Shall I analyze further?"
-
-User: "Yes, analyze the trend."
-AI:   [calls mqtt_query_range + mqtt_analyze]
-AI:   "The temperature has been rising 2°C/min for the last 5 minutes.
-       This suggests a cooling system issue. Recommendation: reduce load
-       and inspect the coolant circuit."
-```
-
-## Tools (MCP)
-
-| Tool | Description |
-|------|-------------|
-| `mqtt_subscribe` | Subscribe to MQTT topics |
-| `mqtt_publish` | Publish messages to MQTT topics |
-| `mqtt_list_devices` | List all connected devices |
-| `mqtt_query_snapshot` | Get latest value for a device/metric |
-| `mqtt_query_range` | Query historical telemetry |
-| `mqtt_send_command` | Send commands to devices |
-| `mqtt_get_alerts` | Get recent alerts |
-| `mqtt_analyze` | AI-powered device health analysis |
-
-## Pricing
-
-| Tier | Price | Features |
-|------|-------|----------|
-| **Open Source** | Free (MIT) | Full MCP Server, single broker, local rules, basic AI Bridge |
-| **Pro** | $49/node/month | Multi-node dashboard, multi-broker, industry templates, alert push |
-| **Enterprise** | Custom | Private deployment, custom protocols (Modbus/OPC-UA), SSO, SLA |
-
-## Architecture
-
-```
-AI Agent (Claude/GPT) ←→ MCP Protocol ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT Devices
-```
-
-- Written in Rust — single binary, <10MB, memory-safe
-- Supports stdio and SSE transports
-- Built-in rule engine with configurable DSL
-- AI Bridge: local pre-filtering + LLM analysis for anomaly detection
-
-## Requirements
-
-- Rust 1.75+ (if building from source)
-- An MQTT broker (e.g., mosquitto, EMQX, HiveMQ)
-- (Optional) LLM API key for AI analysis features
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
+Claude 立刻就能跟你的 IoT 设备说话了。
 
 ---
 
-Built with ❤️ for the intersection of AI and physical computing.
+## AI Agent 能做什么
+
+接入之后，你的 AI Agent 可以：
+
+- **订阅** MQTT 主题，实时监控设备数据
+- **发布** 控制指令（比如"关掉 3 号泵"）
+- **查询** 当前传感器值和历史趋势
+- **分析** 设备健康状态（AI 异常检测、预测性维护）
+- **管理告警** —— 设备异常时自动推送
+
+### 对话示例
+
+```
+用户: "3号泵现在温度多少？"
+AI:   [调用 mqtt_query_snapshot] → 87°C
+AI:   "3号泵当前 87°C，已超过 85°C 阈值。需要我进一步分析吗？"
+
+用户: "分析一下趋势。"
+AI:   [调用 mqtt_query_range + mqtt_analyze]
+AI:   "过去 5 分钟温度以 2°C/分钟速度上升，疑似冷却系统故障。
+       建议：降低负载，并检查冷却液回路。"
+```
+
+---
+
+## 提供的 MCP 工具
+
+| 工具名称 | 功能 |
+|---------|------|
+| `mqtt_subscribe` | 订阅 MQTT 主题 |
+| `mqtt_publish` | 向 MQTT 主题发布消息 |
+| `mqtt_list_devices` | 列出所有已注册设备 |
+| `mqtt_query_snapshot` | 查询设备最新遥测数据 |
+| `mqtt_query_range` | 查询历史遥测数据 |
+| `mqtt_send_command` | 向设备发送控制命令 |
+| `mqtt_get_alerts` | 获取近期告警列表 |
+| `mqtt_analyze` | AI 驱动的设备健康分析 |
+
+---
+
+## 定价
+
+| 版本 | 价格 | 包含功能 |
+|------|------|---------|
+| **开源版** | 免费 (MIT) | 完整 MCP Server、单 Broker、本地规则引擎、基础 AI Bridge |
+| **Pro 版** | ¥149/节点/月 ($49/节点/月) | 多节点管理面板、多 Broker、行业模板、告警推送 |
+| **企业版** | 定制报价 | 私有化部署、定制协议(Modbus/OPC-UA)、SSO、SLA |
+
+> AI 调用费由客户自备 API Key，我们绝不替客户垫 token 费。
+
+---
+
+## 架构
+
+```
+AI Agent ←→ MCP 协议 ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT 设备
+```
+
+- **Rust 编写** —— 单二进制文件，<10MB，内存安全
+- 支持 **stdio** 和 **SSE** 两种传输模式
+- 内置**规则引擎**，支持自定义 DSL
+- **AI Bridge**：本地预过滤 + LLM 深度分析，省 token
+
+---
+
+## 国内 LLM 支持
+
+已内置支持以下国内模型（客户自备 Key）：
+
+| 模型 | provider 配置值 | Base URL |
+|------|----------------|----------|
+| DeepSeek | `deepseek` | `https://api.deepseek.com/v1` |
+| 通义千问 | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| 智谱 GLM | `zhipu` | `https://open.bigmodel.cn/api/paas/v4` |
+| OpenAI 兼容 | `custom` | 自定义 endpoint |
+
+---
+
+## 环境要求
+
+- Rust 1.75+（从源码编译时需要）
+- 一个 MQTT Broker（如 mosquitto、EMQX、HiveMQ）
+- （可选）LLM API Key，启用 AI 分析功能
+
+---
+
+## 许可证
+
+MIT — 详见 [LICENSE](LICENSE)
+
+---
+
+用 Rust 连接 AI 与物理世界。🚀
