@@ -136,6 +136,8 @@ rules:
 |------|------|---------|
 | **开源版** | 免费 (MIT) | 完整 MCP Server、规则引擎、Web Dashboard、AI Bridge |
 
+> AI 调用费由客户自备 API Key，我们绝不替客户垫 token 费。
+
 ## 联系
 
 <p align="center">
