@@ -145,13 +145,46 @@ rules:
 ## 架构
 
 ```
-AI Agent ←→ MCP 协议 ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT 设备
+远程 AI Agent (Claude/Cursor)
+       ↕ HTTP SSE (端口 3000)
+   mqtt-mcp-server (树莓派 / 边缘盒子)
+       ↕ MQTT
+   本地 MQTT Broker (mosquitto)
+       ↕
+   IoT 设备群 (传感器/执行器/PLC)
 ```
 
-- **Rust 编写** —— 单二进制文件，<10MB，内存安全
-- 支持 **stdio** 和 **SSE** 两种传输模式
+- **Rust 编写** —— 单二进制文件，6.9MB，内存安全
+- 支持 **stdio**（桌面端）和 **SSE**（远程/边缘）两种传输模式
 - 内置**规则引擎**，支持自定义 DSL
 - **AI Bridge**：本地预过滤 + LLM 深度分析，省 token
+
+## 树莓派 / ARM64 部署
+
+MQTT MCP Server 最适合部署在**现场边缘盒子**上——树莓派、工控机等。
+
+```bash
+# 1. 下载 ARM64 二进制
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
+
+# 2. 安装 Mosquitto（如果没有）
+sudo apt install -y mosquitto
+
+# 3. 一键部署
+sudo ./install.sh
+
+# 或自定义参数
+sudo ./install.sh --broker tcp://localhost:1883 --listen 0.0.0.0:3000
+```
+
+部署后，远程 AI Agent 通过 HTTP 连接：
+
+```
+SSE 端点: http://树莓派IP:3000/sse
+Web 面板: http://树莓派IP:8080
+```
+
+详见 [deploy/README.md](deploy/README.md)。
 
 ---
 

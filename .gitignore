@@ -3,3 +3,4 @@ data/
 *.db
 .DS_Store
 .idea/
+deploy/mqtt-mcp-server-arm64

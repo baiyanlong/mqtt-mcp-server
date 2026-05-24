@@ -124,13 +124,46 @@ rules:
 ## Architecture
 
 ```
-AI Agent ←→ MCP Protocol ←→ MQTT MCP Server ←→ MQTT Broker ←→ IoT Devices
+Remote AI Agent (Claude/Cursor)
+       ↕ HTTP SSE (port 3000)
+   mqtt-mcp-server (Raspberry Pi / edge box)
+       ↕ MQTT
+   Local MQTT Broker (mosquitto)
+       ↕
+   IoT Devices (sensors/actuators/PLC)
 ```
 
-- **Written in Rust** — single binary, <6MB, memory-safe
-- Supports **stdio** and **SSE** transports
+- **Written in Rust** — single binary, 6.9MB, memory-safe
+- Supports **stdio** (desktop) and **SSE** (remote/edge) transports
 - Built-in **rule engine** with custom DSL
 - **AI Bridge**: local pre-filtering + LLM deep analysis, saves tokens
+
+## Raspberry Pi / ARM64 Deployment
+
+MQTT MCP Server is designed to run on **edge boxes** — Raspberry Pi, industrial gateways, etc.
+
+```bash
+# 1. Download ARM64 binary
+wget https://github.com/baiyanlong/mqtt-mcp-server/releases/latest/download/mqtt-mcp-server-arm64
+
+# 2. Install Mosquitto (if not present)
+sudo apt install -y mosquitto
+
+# 3. One-click deploy
+sudo ./install.sh
+
+# Or with custom params
+sudo ./install.sh --broker tcp://localhost:1883 --listen 0.0.0.0:3000
+```
+
+After deployment, connect your AI Agent remotely:
+
+```
+SSE endpoint: http://<pi-ip>:3000/sse
+Web Dashboard: http://<pi-ip>:8080
+```
+
+See [deploy/README.md](deploy/README.md) for details.
 
 ---
 
