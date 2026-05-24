@@ -138,13 +138,6 @@ rules:
 
 > AI 调用费由客户自备 API Key，我们绝不替客户垫 token 费。
 
-## 联系
-
-<p align="center">
-  <img src="qq-group.jpg" width="200" alt="QQ群"><br>
-  <b>扫码加入 QQ 群</b>
-</p>
-
 ---
 
 ## 架构
@@ -188,3 +181,12 @@ MIT — 详见 [LICENSE](LICENSE)
 ---
 
 用 Rust 连接 AI 与物理世界。🚀
+
+---
+
+## 联系
+
+<p align="center">
+  <img src="qq-group.jpg" width="200" alt="QQ群"><br>
+  <b>扫码加入 QQ 群</b>
+</p>
