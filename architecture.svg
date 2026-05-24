@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 280" width="800" height="280">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="280" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- AI Agent -->
+  <rect x="20" y="100" width="130" height="60" rx="8" fill="#1f6feb22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="85" y="125" text-anchor="middle" fill="#58a6ff" font-family="Arial" font-size="13" font-weight="bold">AI Agent</text>
+  <text x="85" y="145" text-anchor="middle" fill="#8b949e" font-family="Arial" font-size="10">Claude / GPT</text>
+
+  <!-- Arrow 1 -->
+  <line x1="150" y1="130" x2="195" y2="130" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="172" y="122" text-anchor="middle" fill="#484f58" font-size="9">MCP</text>
+
+  <!-- MCP Server (big box) -->
+  <rect x="200" y="50" width="250" height="160" rx="10" fill="#23863615" stroke="#3fb950" stroke-width="2"/>
+  <text x="325" y="75" text-anchor="middle" fill="#3fb950" font-family="Arial" font-size="13" font-weight="bold">MQTT MCP Server</text>
+  <line x1="230" y1="85" x2="420" y2="85" stroke="#30363d" stroke-width="0.5"/>
+
+  <text x="230" y="108" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">├─ 规则引擎</text>
+  <text x="230" y="126" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">├─ AI Bridge</text>
+  <text x="230" y="144" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">├─ 滑动窗口缓存</text>
+  <text x="230" y="162" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">├─ MCP 协议层</text>
+  <text x="230" y="180" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">├─ Web Dashboard</text>
+  <text x="230" y="198" fill="#c9d1d9" font-family="SF Mono,monospace" font-size="10">└─ SQLite 存储</text>
+
+  <!-- Arrow 2 -->
+  <line x1="450" y1="130" x2="495" y2="130" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="472" y="122" text-anchor="middle" fill="#484f58" font-size="9">MQTT</text>
+
+  <!-- MQTT Broker -->
+  <rect x="500" y="100" width="120" height="60" rx="8" fill="#d2992215" stroke="#d29922" stroke-width="1.5"/>
+  <text x="560" y="135" text-anchor="middle" fill="#d29922" font-family="Arial" font-size="12" font-weight="bold">MQTT Broker</text>
+
+  <!-- Arrow 3 -->
+  <line x1="620" y1="130" x2="665" y2="130" stroke="#d29922" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- IoT Devices -->
+  <rect x="670" y="95" width="110" height="70" rx="8" fill="#bc8cff15" stroke="#bc8cff" stroke-width="1.5"/>
+  <text x="725" y="125" text-anchor="middle" fill="#bc8cff" font-family="Arial" font-size="11" font-weight="bold">IoT 设备</text>
+  <text x="725" y="145" text-anchor="middle" fill="#8b949e" font-family="Arial" font-size="9">泵/传感器/门禁</text>
+
+  <!-- LLM box below -->
+  <rect x="260" y="225" width="140" height="35" rx="6" fill="#bc8cff15" stroke="#bc8cff" stroke-width="1"/>
+  <text x="330" y="247" text-anchor="middle" fill="#bc8cff" font-family="Arial" font-size="10">LLM (Ollama/API)</text>
+  <line x1="325" y1="210" x2="330" y2="225" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Labels -->
+  <text x="15" y="20" fill="#8b949e" font-family="Arial" font-size="12" font-weight="bold">系统架构</text>
+</svg>
