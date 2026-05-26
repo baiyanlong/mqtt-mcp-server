@@ -9,3 +9,7 @@ pub mod engine;
 pub mod ai;
 pub mod storage;
 pub mod web;
+pub mod reporter;
+
+#[cfg(feature = "cloud")]
+pub mod cloud;
