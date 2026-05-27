@@ -3,11 +3,16 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   lang: 'zh-CN',
   title: 'MQTT MCP Server',
-  description: '云端 AI 操控物理设备 — Rust 实现，5 分钟部署',
+  description: '云端 AI 操控物理设备',
+
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+  ],
 
   themeConfig: {
+    logo: false,
+    
     nav: [
-      { text: '首页', link: '/' },
       { text: '指南', link: '/guide/getting-started' },
       { text: '部署', link: '/deploy/raspberry-pi' },
       { text: 'API', link: '/api/tools' },
@@ -36,13 +41,16 @@ export default defineConfig({
       ],
     },
 
-    footer: {
-      message: 'MIT Licensed | by byl',
-      copyright: 'Copyright © 2026',
-    },
+    outline: [2, 3],
+    
+    search: { provider: 'local' },
+  },
 
-    search: {
-      provider: 'local',
+  vite: {
+    css: {
+      preprocessorOptions: {
+        scss: {},
+      },
     },
   },
 })
