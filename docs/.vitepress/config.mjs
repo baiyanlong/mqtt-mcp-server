@@ -4,6 +4,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'MQTT MCP Server',
   description: '云端 AI 操控物理设备',
+  base: '/mqtt-mcp-server/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
