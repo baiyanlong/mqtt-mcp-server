@@ -70,6 +70,17 @@
   background: linear-gradient(135deg, #79b8ff 0%, #58a6ff 100%) !important;
 }
 
+.VPHero .actions .VPButton.alt {
+  background: #161b22 !important;
+  border: 1px solid #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+.VPHero .actions .VPButton.alt:hover {
+  border-color: #58a6ff !important;
+  color: #58a6ff !important;
+}
+
 /* Feature 卡片 */
 .VPFeatures .item {
   background: #161b22 !important;
