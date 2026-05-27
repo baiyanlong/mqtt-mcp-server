@@ -3,7 +3,7 @@
 // CLI 参数可覆盖配置文件的值，不写配置文件也能直接启动。
 
 use clap::Parser;
-use mqtt_mcp_server::{config, storage, mqtt, ai, mcp};
+use mqtt_mcp_server::{config, storage, mqtt, ai, mcp, reporter};
 use tracing_subscriber::{EnvFilter, fmt};
 
 /// MQTT MCP Server：将 AI 智能体通过 MQTT 连接到物理设备
@@ -80,6 +80,15 @@ struct Cli {
     /// SQLite 数据库路径
     #[arg(long)]
     db: Option<String>,
+
+    // ── Pro 云服务 ──
+    /// 云服务地址（如 https://dashboard.mqtt-mcp.com）
+    #[arg(long)]
+    cloud: Option<String>,
+
+    /// 云服务 API Key
+    #[arg(long)]
+    cloud_key: Option<String>,
 }
 
 #[tokio::main]
@@ -154,8 +163,20 @@ async fn main() -> anyhow::Result<()> {
     // 初始化 AI Bridge
     let ai_bridge = ai::Bridge::new(&cfg.ai);
 
+    // 初始化云服务上报代理（Pro 版可选）
+    let cloud_reporter = match (&cli.cloud, &cli.cloud_key) {
+        (Some(url), Some(key)) => {
+            let node_id = uuid::Uuid::new_v4().to_string();
+            tracing::info!("云服务已配置: {} (节点ID: {})", url, node_id);
+            let r = reporter::Reporter::new(url.clone(), key.clone(), node_id);
+            r.start();
+            Some(r)
+        }
+        _ => None,
+    };
+
     // 初始化 MQTT 客户端（传入 AI Bridge 和规则引擎）
-    let mqtt_handle = mqtt::start(&cfg.mqtt, db.clone(), Some(ai_bridge.clone()), cfg.rules.clone(), cfg.devices.clone(), cfg.ai.window_size).await?;
+    let mqtt_handle = mqtt::start(&cfg.mqtt, db.clone(), Some(ai_bridge.clone()), cfg.rules.clone(), cfg.devices.clone(), cfg.ai.window_size, cloud_reporter).await?;
 
     // 构建并启动 MCP 服务
     tracing::info!("启动 MCP 服务（{} 模式）...", cli.mode);

@@ -55,7 +55,7 @@ async fn test_ai_bridge_with_ollama() {
     let ai = mqtt_mcp_server::ai::Bridge::new(&config.ai);
     assert!(ai.is_enabled());
 
-    let handle = mqtt::start(&config.mqtt, db.clone(), Some(ai), rules, config.devices.clone(), 100)
+    let handle = mqtt::start(&config.mqtt, db.clone(), Some(ai), rules, config.devices.clone(), 100, None)
         .await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(2)).await;

@@ -37,7 +37,7 @@ async fn test_rule_engine_triggers_alert() {
     };
 
     let db = storage::init(&config).await.unwrap();
-    let handle = mqtt::start(&config.mqtt, db.clone(), None, rules, vec![], 100)
+    let handle = mqtt::start(&config.mqtt, db.clone(), None, rules, vec![], 100, None)
         .await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(2)).await;

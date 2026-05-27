@@ -127,18 +127,34 @@ pub async fn run_event_loop(eventloop: &mut EventLoop, handle: MqttHandle) {
 
                     let _ = handle.db.insert_alert(&crate::storage::models::Alert {
                         id: None,
-                        rule_name: result.rule_name,
-                        device_id: result.device_id,
-                        metric: result.metric,
+                        rule_name: result.rule_name.clone(),
+                        device_id: result.device_id.clone(),
+                        metric: result.metric.clone(),
                         value: result.current_value,
                         severity: severity_str.into(),
-                        message: result.message,
-                        ai_analysis,
+                        message: result.message.clone(),
+                        ai_analysis: ai_analysis.clone(),
                         acknowledged: false,
                         resolved: false,
                         created_at: result.timestamp,
                         resolved_at: None,
                     }).await;
+
+                    // Pro 版：推送告警到云服务
+                    if let Some(ref reporter) = handle.reporter {
+                        let alert = crate::reporter::AlertPayload {
+                            node_id: reporter.node_id().to_string(),
+                            device_id: result.device_id.clone(),
+                            rule_name: result.rule_name.clone(),
+                            severity: severity_str.to_string(),
+                            message: result.message.clone(),
+                            value: result.current_value,
+                            metric: result.metric.clone(),
+                            timestamp: result.timestamp.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                            ai_analysis: ai_analysis.clone(),
+                        };
+                        reporter.push_alert(alert).await;
+                    }
                 }
             }
             Ok(Event::Incoming(Incoming::ConnAck(ack))) => {
