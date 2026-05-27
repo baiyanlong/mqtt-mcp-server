@@ -69,6 +69,7 @@ dashmap = "6"
 
 [dev-dependencies]
 tokio-test = "0.4"
+tower = { version = "0.5", features = ["util"] }
 
 [[test]]
 name = "integration"
@@ -89,6 +90,11 @@ path = "tests/integration/mcp_client_test.rs"
 [[test]]
 name = "ai_bridge"
 path = "tests/integration/ai_bridge_test.rs"
+
+[[test]]
+name = "cloud_api"
+path = "tests/integration/cloud_api_test.rs"
+required-features = ["cloud"]
 
 [profile.release]
 opt-level = 3
