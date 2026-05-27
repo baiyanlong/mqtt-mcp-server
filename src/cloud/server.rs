@@ -255,6 +255,24 @@ th { color: #8b949e; font-weight: 500; }
 .badge-crit { background: #da363333; color: #f85149; }
 .mono { font-family: 'SF Mono', monospace; font-size: 12px; }
 .timestamp { color: #484f58; font-size: 11px; }
+/* 节点卡片地图 */
+.node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.node-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; transition: border-color 0.2s, transform 0.2s; position: relative; }
+.node-card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+.node-card.online { border-left: 3px solid #3fb950; }
+.node-card.offline { border-left: 3px solid #f85149; opacity: 0.7; }
+.node-card .nc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.node-card .nc-name { font-size: 16px; font-weight: 600; color: #e6edf3; word-break: break-all; }
+.node-card .nc-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.node-card .nc-badge.online-badge { background: #3fb95022; color: #3fb950; }
+.node-card .nc-badge.offline-badge { background: #f8514922; color: #f85149; }
+.node-card .nc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.node-card .nc-stat { text-align: center; padding: 8px; background: #0d1117; border-radius: 6px; }
+.node-card .nc-stat .nc-val { font-size: 20px; font-weight: 700; color: #58a6ff; }
+.node-card .nc-stat .nc-label { font-size: 11px; color: #8b949e; margin-top: 2px; }
+.node-card .nc-footer { margin-top: 14px; padding-top: 12px; border-top: 1px solid #21262d; display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; }
+.node-card .nc-version { font-family: 'SF Mono', monospace; }
+.node-card .nc-alert-count { color: #f85149; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -268,9 +286,8 @@ th { color: #8b949e; font-weight: 500; }
   <div class="stat critical"><div class="num" id="stat-critical">0</div><div class="label">严重告警</div></div>
 </div>
 
-<div class="card"><h2>节点状态</h2>
-<table><thead><tr><th>节点</th><th>状态</th><th>设备数</th><th>告警数</th><th>运行时长</th><th>最后心跳</th></tr></thead>
-<tbody id="nodes"></tbody></table></div>
+<div class="card"><h2>节点地图</h2>
+<div class="node-grid" id="nodes"></div></div>
 
 <div class="card"><h2>最近告警</h2>
 <table><thead><tr><th>节点</th><th>级别</th><th>设备</th><th>数值</th><th>时间</th></tr></thead>
@@ -287,16 +304,23 @@ async function refresh() {
         document.getElementById('stat-critical').textContent = d.critical_alerts;
 
         document.getElementById('nodes').innerHTML = d.nodes.map(n => {
-            let uptime = n.uptime_secs ? Math.floor(n.uptime_secs / 3600) + 'h' : '-';
-            return `<tr>
-                <td class="mono">${n.name || n.node_id}</td>
-                <td class="${n.status === 'online' ? 'online' : 'offline'}">${n.status === 'online' ? '在线' : '离线'}</td>
-                <td>${n.device_count}</td>
-                <td>${n.alert_count}</td>
-                <td>${uptime}</td>
-                <td class="timestamp">${n.last_heartbeat?.substring(11,19) || '-'}</td>
-            </tr>`;
-        }).join('') || '<tr><td colspan="6">暂无节点</td></tr>';
+            let uptime = n.uptime_secs ? Math.floor(n.uptime_secs / 3600) + 'h' : '?';
+            let alertClass = n.alert_count > 0 ? ' nc-alert-count' : '';
+            return `<div class="node-card ${n.status === 'online' ? 'online' : 'offline'}">
+                <div class="nc-header">
+                    <span class="nc-name">${n.name || n.node_id}</span>
+                    <span class="nc-badge ${n.status === 'online' ? 'online-badge' : 'offline-badge'}">${n.status === 'online' ? '在线' : '离线'}</span>
+                </div>
+                <div class="nc-stats">
+                    <div class="nc-stat"><div class="nc-val">${n.device_count}</div><div class="nc-label">设备数</div></div>
+                    <div class="nc-stat"><div class="nc-val${alertClass}">${n.alert_count}</div><div class="nc-label">告警数</div></div>
+                </div>
+                <div class="nc-footer">
+                    <span>uptime ${uptime}</span>
+                    <span class="nc-version">${n.last_heartbeat?.substring(11,19) || '-'}</span>
+                </div>
+            </div>`;
+        }).join('') || '<div style="color:#8b949e;text-align:center;padding:40px">暂无节点</div>';
 
         let a = await fetch(API + '/alerts?limit=20').then(r => r.json());
         document.getElementById('alerts').innerHTML = a.map(al => {
