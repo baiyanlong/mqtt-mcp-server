@@ -24,7 +24,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
-cloud = ["dep:sqlx", "dep:sha2", "dep:axum"]
+cloud = ["dep:sqlx", "dep:axum"]
 
 [dependencies]
 # MCP 协议
@@ -49,8 +49,11 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 
 # Pro 版 — 云服务（需 cloud feature）
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"], optional = true }
-sha2 = { version = "0.10", optional = true }
 axum = { version = "0.8", optional = true }
+
+# License + 签名
+sha2 = "0.10"
+base64 = "0.22"
 
 # HTTP
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

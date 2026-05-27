@@ -9,6 +9,7 @@ pub mod storage;
 pub mod web;
 pub mod reporter;
 pub mod ota;
+pub mod license;
 
 #[cfg(feature = "cloud")]
 pub mod cloud;

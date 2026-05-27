@@ -3,7 +3,7 @@
 // CLI 参数可覆盖配置文件的值，不写配置文件也能直接启动。
 
 use clap::Parser;
-use mqtt_mcp_server::{config, storage, mqtt, ai, mcp, reporter, ota};
+use mqtt_mcp_server::{config, storage, mqtt, ai, mcp, reporter, ota, license};
 use tracing_subscriber::{EnvFilter, fmt};
 
 /// MQTT MCP Server：将 AI 智能体通过 MQTT 连接到物理设备
@@ -89,6 +89,10 @@ struct Cli {
     /// 云服务 API Key
     #[arg(long)]
     cloud_key: Option<String>,
+
+    /// Pro License Key
+    #[arg(long)]
+    license: Option<String>,
 }
 
 #[tokio::main]
@@ -104,6 +108,20 @@ async fn main() -> anyhow::Result<()> {
     ota::startup_health_check();
 
     let cli = Cli::parse();
+
+    // ── License 校验 ──
+    if let Some(ref lk) = cli.license {
+        let lic = license::License::verify(lk);
+        if !lic.is_valid() {
+            anyhow::bail!("License 无效: {}", lic.reason.unwrap_or_default());
+        }
+        tracing::info!(
+            "[license] ✅ 有效 — 节点数上限: {}, 到期: {}, 客户: {}",
+            lic.payload.node_limit,
+            lic.payload.expire,
+            if lic.payload.customer.is_empty() { "-" } else { &lic.payload.customer }
+        );
+    }
 
     // 加载配置文件
     let mut cfg = config::load(&cli.config)?;
