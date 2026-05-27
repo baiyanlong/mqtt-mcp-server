@@ -23,17 +23,23 @@ pub struct CloudState {
 pub fn build_router(pool: PgPool) -> Router {
     let state = CloudState { db: pool };
 
-    Router::new()
-        // ── 节点管理 ──
+    // 无需认证的路由
+    let public = Router::new()
+        .route("/", get(serve_dashboard))
+        .route("/health", get(health_check));
+
+    // 需要 API Key 的路由
+    let api = Router::new()
         .route("/api/v1/nodes/register", post(register_node))
         .route("/api/v1/nodes/heartbeat", post(node_heartbeat))
         .route("/api/v1/nodes", get(list_nodes))
-        // ── 告警 ──
         .route("/api/v1/alerts", post(push_alert).get(get_alerts))
-        // ── 仪表盘 ──
         .route("/api/v1/dashboard", get(dashboard))
-        // ── 内嵌 HTML 多节点面板 ──
-        .route("/", get(serve_dashboard))
+        .layer(axum::middleware::from_fn(super::auth::auth_middleware));
+
+    Router::new()
+        .merge(public)
+        .merge(api)
         .with_state(state)
 }
 
@@ -141,6 +147,11 @@ async fn dashboard(
             tracing::error!("查询仪表盘失败: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })
+}
+
+/// GET /health — 健康检查
+async fn health_check() -> Json<ApiResponse> {
+    Json(ApiResponse { status: "ok".into(), message: Some("MQTT MCP Cloud is running".into()) })
 }
 
 /// GET / — 内嵌 HTML 多节点面板

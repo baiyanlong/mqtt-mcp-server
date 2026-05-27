@@ -166,9 +166,13 @@ async fn main() -> anyhow::Result<()> {
     // 初始化云服务上报代理（Pro 版可选）
     let cloud_reporter = match (&cli.cloud, &cli.cloud_key) {
         (Some(url), Some(key)) => {
-            let node_id = uuid::Uuid::new_v4().to_string();
-            tracing::info!("云服务已配置: {} (节点ID: {})", url, node_id);
-            let r = reporter::Reporter::new(url.clone(), key.clone(), node_id);
+            let storage_dir = std::path::PathBuf::from(
+                std::path::Path::new(&cfg.storage.db_path)
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+            );
+            let r = reporter::Reporter::new(url.clone(), key.clone(), storage_dir);
+            tracing::info!("[cloud] 已配置: {} (节点ID: {})", url, r.node_id());
             r.start();
             Some(r)
         }
