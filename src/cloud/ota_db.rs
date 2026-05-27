@@ -7,26 +7,21 @@ use super::ota::*;
 /// 初始化 OTA 表
 pub async fn init_ota(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS ota_releases (
-            id BIGSERIAL PRIMARY KEY,
-            version VARCHAR(50) NOT NULL,
-            platform VARCHAR(20) NOT NULL,
-            file_path VARCHAR(500) NOT NULL,
-            sha256 VARCHAR(64) NOT NULL,
-            size_bytes BIGINT NOT NULL DEFAULT 0,
-            release_notes TEXT,
-            min_version VARCHAR(50),
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            UNIQUE(version, platform)
-        );
+        "CREATE TABLE IF NOT EXISTS ota_releases (\
+            id BIGSERIAL PRIMARY KEY,\
+            version VARCHAR(50) NOT NULL,\
+            platform VARCHAR(20) NOT NULL,\
+            file_path VARCHAR(500) NOT NULL,\
+            sha256 VARCHAR(64) NOT NULL,\
+            size_bytes BIGINT NOT NULL DEFAULT 0,\
+            release_notes TEXT,\
+            min_version VARCHAR(50),\
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\
+            UNIQUE(version, platform))",
+    ).execute(pool).await?;
 
-        CREATE INDEX IF NOT EXISTS idx_ota_platform ON ota_releases(platform);
-        CREATE INDEX IF NOT EXISTS idx_ota_version ON ota_releases(version);
-        "#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_ota_platform ON ota_releases(platform)").execute(pool).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_ota_version ON ota_releases(version)").execute(pool).await?;
 
     tracing::info!("[ota] OTA 表已初始化");
     Ok(())

@@ -4,53 +4,50 @@ use sqlx::PgPool;
 
 use super::models::*;
 
-/// 初始化数据库：创建表结构
+/// 初始化数据库：创建表结构（逐条执行，兼容 PG prepared statement 限制）
 pub async fn init(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS nodes (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            node_id VARCHAR(255) UNIQUE NOT NULL,
-            name VARCHAR(255) NOT NULL DEFAULT '',
-            version VARCHAR(50) NOT NULL DEFAULT '',
-            last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            device_count INT NOT NULL DEFAULT 0,
-            alert_count INT NOT NULL DEFAULT 0,
-            mqtt_connected BOOLEAN NOT NULL DEFAULT false,
-            status VARCHAR(20) NOT NULL DEFAULT 'online',
-            cpu_percent DOUBLE PRECISION,
-            mem_mb DOUBLE PRECISION,
-            uptime_secs BIGINT,
-            labels JSONB,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
+        "CREATE TABLE IF NOT EXISTS nodes (\
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\
+            node_id VARCHAR(255) UNIQUE NOT NULL,\
+            name VARCHAR(255) NOT NULL DEFAULT '',\
+            version VARCHAR(50) NOT NULL DEFAULT '',\
+            last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),\
+            device_count INT NOT NULL DEFAULT 0,\
+            alert_count INT NOT NULL DEFAULT 0,\
+            mqtt_connected BOOLEAN NOT NULL DEFAULT false,\
+            status VARCHAR(20) NOT NULL DEFAULT 'online',\
+            cpu_percent DOUBLE PRECISION,\
+            mem_mb DOUBLE PRECISION,\
+            uptime_secs BIGINT,\
+            labels JSONB,\
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    ).execute(pool).await?;
 
-        CREATE TABLE IF NOT EXISTS alerts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            node_id VARCHAR(255) NOT NULL,
-            device_id VARCHAR(255) NOT NULL,
-            rule_name VARCHAR(255) NOT NULL DEFAULT '',
-            severity VARCHAR(20) NOT NULL DEFAULT 'info',
-            message TEXT NOT NULL DEFAULT '',
-            value DOUBLE PRECISION NOT NULL DEFAULT 0,
-            metric VARCHAR(100) NOT NULL DEFAULT '',
-            ai_analysis TEXT,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS alerts (\
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\
+            node_id VARCHAR(255) NOT NULL,\
+            device_id VARCHAR(255) NOT NULL,\
+            rule_name VARCHAR(255) NOT NULL DEFAULT '',\
+            severity VARCHAR(20) NOT NULL DEFAULT 'info',\
+            message TEXT NOT NULL DEFAULT '',\
+            value DOUBLE PRECISION NOT NULL DEFAULT 0,\
+            metric VARCHAR(100) NOT NULL DEFAULT '',\
+            ai_analysis TEXT,\
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    ).execute(pool).await?;
 
-        CREATE INDEX IF NOT EXISTS idx_alerts_node_id ON alerts(node_id);
-        CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at);
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_alerts_node_id ON alerts(node_id)").execute(pool).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at)").execute(pool).await?;
 
-        CREATE TABLE IF NOT EXISTS api_keys (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            node_id VARCHAR(255) UNIQUE NOT NULL,
-            key_hash VARCHAR(255) NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        "#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS api_keys (\
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\
+            node_id VARCHAR(255) UNIQUE NOT NULL,\
+            key_hash VARCHAR(255) NOT NULL,\
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    ).execute(pool).await?;
 
     tracing::info!("[cloud] 数据库表已初始化");
     Ok(())
@@ -61,7 +58,7 @@ pub async fn upsert_node(pool: &PgPool, req: &RegisterNodeRequest) -> anyhow::Re
     let node = sqlx::query_as::<_, Node>(
         r#"
         INSERT INTO nodes (node_id, name, version, last_heartbeat, status)
-        VALUES ($1, COALESCE($4, ''), $2, NOW(), 'online')
+        VALUES ($1, COALESCE($2, ''), $3, NOW(), 'online')
         ON CONFLICT (node_id)
         DO UPDATE SET
             version = EXCLUDED.version,
@@ -72,8 +69,8 @@ pub async fn upsert_node(pool: &PgPool, req: &RegisterNodeRequest) -> anyhow::Re
         "#,
     )
     .bind(&req.node_id)
-    .bind(&req.version)
     .bind(&req.name)
+    .bind(&req.version)
     .fetch_one(pool)
     .await?;
 
