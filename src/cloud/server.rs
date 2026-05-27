@@ -1,17 +1,31 @@
 //! 云服务 HTTP API
 
 use axum::{
-    Json, Router, extract::State, http::StatusCode, routing::{get, post},
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
+    routing::{get, post},
 };
 use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::models::*;
+use super::ota::*;
+use super::ota_db;
 
 use super::db;
 #[allow(unused_imports)]
 use super::auth::auth_middleware;
+
+/// OTA 路由（使用 CloudState）
+pub fn ota_routes(state: CloudState) -> Router<CloudState> {
+    use axum::routing::get;
+    Router::new()
+        .route("/api/v1/ota/check", get(ota_check_update))
+        .route("/api/v1/ota/download/{version}/{platform}", get(ota_download))
+        .with_state(state)
+}
 
 /// 共享应用状态
 #[derive(Clone)]
@@ -40,6 +54,7 @@ pub fn build_router(pool: PgPool) -> Router {
     Router::new()
         .merge(public)
         .merge(api)
+        .merge(ota_routes(state.clone()))
         .with_state(state)
 }
 
@@ -157,6 +172,58 @@ async fn health_check() -> Json<ApiResponse> {
 /// GET / — 内嵌 HTML 多节点面板
 async fn serve_dashboard() -> axum::response::Html<&'static str> {
     axum::response::Html(CLOUD_DASHBOARD_HTML)
+}
+
+/// GET /api/v1/ota/check?platform=arm64&current_version=0.3.0
+async fn ota_check_update(
+    State(state): State<CloudState>,
+    axum::extract::Query(params): axum::extract::Query<OtaCheckParams>,
+) -> Result<Json<OtaCheckResponse>, StatusCode> {
+    let latest = ota_db::get_latest(&state.db, &params.platform)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match latest {
+        Some(release) if release.version != params.current_version => {
+            let allowed = match &release.min_version {
+                Some(min_v) if params.current_version.as_str() < min_v.as_str() => true,
+                _ => release.min_version.is_none(),
+            };
+            if allowed {
+                Ok(Json(OtaCheckResponse {
+                    update_available: true,
+                    latest_version: Some(release.version.clone()),
+                    download_url: Some(format!("/api/v1/ota/download/{}/{}", release.version, release.platform)),
+                    sha256: Some(release.sha256),
+                    size_bytes: Some(release.size_bytes),
+                    release_notes: release.release_notes,
+                }))
+            } else {
+                Ok(Json(OtaCheckResponse {
+                    update_available: false, latest_version: None, download_url: None,
+                    sha256: None, size_bytes: None,
+                    release_notes: Some("受 min_version 限制".into()),
+                }))
+            }
+        }
+        _ => Ok(Json(OtaCheckResponse {
+            update_available: false, latest_version: None, download_url: None,
+            sha256: None, size_bytes: None, release_notes: None,
+        })),
+    }
+}
+
+/// GET /api/v1/ota/download/{version}/{platform}
+async fn ota_download(
+    State(state): State<CloudState>,
+    Path((version, platform)): Path<(String, String)>,
+) -> Result<axum::body::Body, StatusCode> {
+    let release = ota_db::get_version(&state.db, &version, &platform)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    let data = tokio::fs::read(&release.file_path).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(axum::body::Body::from(data))
 }
 
 /// 内嵌的多节点 Dashboard HTML

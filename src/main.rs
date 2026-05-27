@@ -3,7 +3,7 @@
 // CLI 参数可覆盖配置文件的值，不写配置文件也能直接启动。
 
 use clap::Parser;
-use mqtt_mcp_server::{config, storage, mqtt, ai, mcp, reporter};
+use mqtt_mcp_server::{config, storage, mqtt, ai, mcp, reporter, ota};
 use tracing_subscriber::{EnvFilter, fmt};
 
 /// MQTT MCP Server：将 AI 智能体通过 MQTT 连接到物理设备
@@ -100,6 +100,9 @@ async fn main() -> anyhow::Result<()> {
             .unwrap_or_else(|_| EnvFilter::new("info")))
         .init();
 
+    // OTA 升级后健康检查
+    ota::startup_health_check();
+
     let cli = Cli::parse();
 
     // 加载配置文件
@@ -174,6 +177,12 @@ async fn main() -> anyhow::Result<()> {
             let r = reporter::Reporter::new(url.clone(), key.clone(), storage_dir);
             tracing::info!("[cloud] 已配置: {} (节点ID: {})", url, r.node_id());
             r.start();
+
+            // OTA 自动更新检查
+            let platform = if cfg!(target_arch = "aarch64") { "arm64" } else { "x86_64" };
+            let ota_client = ota::OtaClient::new(url.clone(), key.clone(), platform);
+            ota_client.start();
+
             Some(r)
         }
         _ => None,
