@@ -166,6 +166,15 @@ tr:hover td {
   background: #484f58;
 }
 
+/* 导航栏链接 */
+.VPNavBarMenuLink {
+  color: #c9d1d9 !important;
+}
+
+.VPNavBarMenuLink:hover {
+  color: #58a6ff !important;
+}
+
 /* 页脚 */
 .VPFooter {
   border-top: 1px solid #21262d !important;
