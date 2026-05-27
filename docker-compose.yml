@@ -1,4 +1,8 @@
 # MQTT MCP Server + Mosquitto 一键部署
+#
+# 启动： docker-compose up -d
+# 访问： Dashboard http://localhost:8080 | SSE http://localhost:3000/sse
+
 version: "3.8"
 
 services:
@@ -7,12 +11,20 @@ services:
     image: mqtt-mcp-server:latest
     container_name: mqtt-mcp-server
     ports:
-      - "8080:8080"
+      - "3000:3000"   # SSE MCP 端点
+      - "8080:8080"   # Web Dashboard
     environment:
       - RUST_LOG=info
+      - MQTT_BROKER=tcp://mosquitto:1883
     volumes:
       - ./config.yaml:/etc/mqtt-mcp/config.yaml:ro
       - mqtt_mcp_data:/app/data
+    command:
+      - "--mode=sse"
+      - "--listen=0.0.0.0:3000"
+      - "--broker=tcp://mosquitto:1883"
+      - "--topics=#"
+      - "--web=8080"
     depends_on:
       mosquitto:
         condition: service_healthy

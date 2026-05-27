@@ -1,24 +1,39 @@
-# 多阶段构建 — 服务器端 Linux 原生编译
-FROM rust:1.85-slim-bookworm AS builder
+# MQTT MCP Server 边缘节点 — 多架构 Docker 镜像
+#
+# 构建（自动检测架构）：
+#   docker build -t mqtt-mcp-server .
+#
+# 构建 ARM64（在 x86 上交叉）：
+#   docker buildx build --platform linux/arm64 -t mqtt-mcp-server .
+#
+# 运行：
+#   docker run -d --name mqtt-mcp \
+#     -p 3000:3000 -p 8080:8080 \
+#     -e MQTT_BROKER=tcp://mosquitto:1883 \
+#     mqtt-mcp-server
 
-RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+FROM rust:1.86-slim-bookworm AS builder
 
-WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
-COPY src/ src/
-COPY tests/ tests/
-COPY config.example.yaml ./
+WORKDIR /build
+COPY . .
 
-RUN cargo build --release && strip target/release/mqtt-mcp-server
+RUN apt-get update -qq && apt-get install -y -qq pkg-config libssl-dev && \
+    cargo build --release
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install -y -qq ca-certificates libssl3 && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/mqtt-mcp-server /usr/local/bin/mqtt-mcp-server
-COPY --from=builder /app/config.example.yaml /etc/mqtt-mcp/config.yaml
+COPY --from=builder /build/target/release/mqtt-mcp-server /usr/local/bin/
 
-EXPOSE 8080
+# 默认配置
+ENV MQTT_BROKER=tcp://localhost:1883
+ENV MQTT_TOPICS="#"
+
+EXPOSE 3000 8080
 
 ENTRYPOINT ["mqtt-mcp-server"]
-CMD ["--config", "/etc/mqtt-mcp/config.yaml", "--web", "8080"]
+CMD ["--mode", "sse", \
+     "--listen", "0.0.0.0:3000", \
+     "--web", "8080"]
