@@ -17,6 +17,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/getting-started' },
       { text: '部署', link: '/deploy/raspberry-pi' },
       { text: 'API', link: '/api/tools' },
+      { text: '定价', link: '/pricing' },
       { text: 'FAQ', link: '/faq' },
       { text: 'GitHub', link: 'https://github.com/baiyanlong/mqtt-mcp-server' },
     ],

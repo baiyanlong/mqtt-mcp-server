@@ -48,9 +48,22 @@ features:
 
 **AI 不跑在树莓派上。** 小盒子只管协议转换。
 
-## 赞助
+## Pro 版：多节点运维神器
+
+| 功能 | 说明 |
+|---|---|
+| **Cloud Dashboard** | 一张地图管理所有节点，设备状态 + 告警实时展示 |
+| **Reporter 上报** | 心跳 30 秒推一次，告警实时推，不用等轮询 |
+| **OTA 远程升级** | 坐在家里升级工厂里的盒子，失败自动回滚 |
+| **License 离线验证** | HMAC 签名，拔网线也不影响运行 |
+
+[查看定价 →](/pricing)
+
+---
+
+## 加群聊聊
 
 <p align="center">
-  <img src="/qq-group.jpg" width="240" alt="QQ群"><br>
+  <img src="/qq-group.jpg" width="200" alt="QQ群"><br>
   <b>IoT + AI 交流群</b>
 </p>
